@@ -105,7 +105,8 @@ FlyTeam::FlyTeam(int index, const string & moving_rule,
     : Warrior(index, pos, map, "FlyTeam", hp, damage), moving_rule(moving_rule) {}
 string FlyTeam::getMovingRule() const { return moving_rule; }
 Position FlyTeam::getNextPosition() const {
-
+    Position next_pos = pos;
+    //
 }
 void FlyTeam::move() {
     Position next_pos = getNextPosition();
@@ -114,11 +115,15 @@ void FlyTeam::move() {
     }
 }
 string FlyTeam::str() const {
-    return "FlyTeam " + to_string(index) + " at " + pos.str() + " with HP: " + to_string(hp) + " and Damage: " + to_string(damage);
+    return "FlyTeam[index=" + to_string(index) + ";pos=" + pos.str() + ";moving_rule=" + moving_rule + "]";
 }
-void FlyTeam::attack() {
+bool FlyTeam::attack() {
+    // TODO
+    
+}
 
-}
+// 3.7
+
 
 ////////////////////////////////////////////////
 /// END OF STUDENT'S ANSWER

@@ -119,7 +119,7 @@ public:
     int getDamage() const;
     void setHp(int new_hp);
     void setDamage(int new_damage);
-
+    BaseBag* getBag() const;
 };
 
 // ——— FlyTeam & GroundTeam ———
@@ -135,7 +135,7 @@ public:
     Position getNextPosition() const;
     void move();
     string str() const;
-    void attack();
+    bool attack();
 
 };
 
@@ -147,48 +147,71 @@ public:
     GroundTeam(int index, const string & moving_rule,
         const Position & pos, Map * map, int hp, int damage);
     // TODO
-    // getNextPosition()
-    // move
-    // str
-    // trap
-    // getter and setter
-    
+    Position getNextPosition() const;
+    void move();
+    string str() const;
+    bool trap() const;
+    int getTrapTurns() const;
+    void setTrapTurns(int turns);
 };
 
 // ——— DragonLord ———
-class DragonLord /* TODO */ {
+class DragonLord : public MovingObject {
 private:
-    // TODO
+    FlyTeam *flyteam1;
+    FlyTeam *flyteam2;
 
 public:
     DragonLord(int index, const Position & pos, Map * map,
                FlyTeam *flyteam1, FlyTeam *flyteam2);
     // TODO
-    // getNextPosition()
-    // move
-    // str
-    
+    Position getNextPosition() const;
+    void move();
+    string str() const;
 };
 
 // ...................
 // ——— SmartDragon ———
+class SmartDragon : public MovingObject {
+private:
+public:
+
+
 
 // ——— BaseItem ———
+class BaseItem {
+public:
+    virtual bool canUse(Warrior* w) = 0;
+    virtual void use(Warrior* w) = 0;
+}
+
 
 // ——— BaseBag ———
-
-
+class BaseBag {
+public:
+    virtual bool insert(BaseItem* item);
+    virtual BaseItem* get();
+    virtual BaseItem* get(ItemType itemType);
+    virtual bool str() const;
+};
 // ...................
+
+
 
 // ——— ArrayMovingObject ———
 class ArrayMovingObject {
 private:
-    // TODO
+    MovingObject **arr_mv_objs;
+    int count;
+    int capacity;
 
 public:
     ArrayMovingObject(int capacity);
     ~ArrayMovingObject() ;
     // TODO
+    bool isFull() const;
+    bool add(MovingObject *mv_obj);
+    string str() const;
     // isFull, add, str,...
 
 };
@@ -199,13 +222,31 @@ class Configuration {
 
 private:
     // TODO
+    int map_num_rows, map_num_cols;
+    int max_num_moving_objects;
+    int num_obstacles;
+    Position *arr_obstacles;
+    int num_ground_obstacles;
+    Position *arr_ground_obstacles;
+    string flyteam1_moving_rule;
+    Position flyteam1_init_pos;
+    int flyteam1_init_hp;
+    int flyteam1_init_damage;
+    string flyteam2_moving_rule;
+    Position flyteam2_init_pos;
+    int flyteam2_init_hp;
+    int flyteam2_init_damage;
+    string groundteam_moving_rule;
+    Position groundteam_init_pos;
+    int groundteam_init_hp;
+    int groundteam_init_damage;
+    Position dragonlord_init_pos;
+    int num_steps;
 
 public:
     Configuration(const string & filepath);
     ~Configuration();
     string str() const;
-    // TODO
-
 };
 
 // ——— DragonWarriorsProgram ———
@@ -225,7 +266,7 @@ private:
     
 public:
     DragonWarriorsProgram(const string &config_file_path);
-    
+
     bool   isStop() const;
 
     void printResult() const {
