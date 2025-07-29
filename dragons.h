@@ -183,7 +183,7 @@ class BaseItem {
 public:
     virtual bool canUse(Warrior* w) = 0;
     virtual void use(Warrior* w) = 0;
-}
+};
 
 
 // ——— BaseBag ———

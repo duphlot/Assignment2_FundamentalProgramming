@@ -119,12 +119,47 @@ string FlyTeam::str() const {
 }
 bool FlyTeam::attack() {
     // TODO
-    
+
 }
 
 // 3.7
+GroundTeam::GroundTeam(int index, const string & moving_rule,
+                       const Position & pos, Map * map, int hp, int damage)
+    : Warrior(index, pos, map, "GroundTeam", hp, damage), moving_rule(moving_rule) {}
+Position GroundTeam::getNextPosition() const {
 
+}
+void GroundTeam::move() {
+    Position next_pos = getNextPosition();
+    if (map->isValid(next_pos, this)) {
+        pos = next_pos;
+    }
+}
+string GroundTeam::str() const {
 
+}
+int GroundTeam::getTrapTurns() const {
+    // TODO
+}
+void GroundTeam::setTrapTurns(int turns) {
+
+}
+
+// 3.8
+DragonLord::DragonLord(int index, const Position & pos, Map * map,
+                       FlyTeam *flyteam1, FlyTeam *flyteam2)
+    : MovingObject(index, pos, map, "DragonLord"), flyteam1(flyteam1), flyteam2(flyteam2) {}
+Position DragonLord::getNextPosition() const {
+
+}
+void DragonLord::move() {
+    Position next_pos = getNextPosition();
+    if (map->isValid(next_pos, this)) {
+        pos = next_pos;
+    }
+}
+string DragonLord::str() const {
+}
 ////////////////////////////////////////////////
 /// END OF STUDENT'S ANSWER
 ////////////////////////////////////////////////
