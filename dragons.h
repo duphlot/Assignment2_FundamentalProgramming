@@ -19,22 +19,22 @@
 ////////////////////////////////////////////////////////////////////////
 
 // Forward declaration
-// class MovingObject;
-// class ArrayMovingObject
-// class DragonWarriorsProgram
-// class Position;
-// class Configuration;
-// class Map;
+class MovingObject;
+class ArrayMovingObject;
+class DragonWarriorsProgram;
+class Position;
+class Configuration;
+class Map;
 
-// class DragonLord;
-// class SmartDragon;
-// class Warrior;
-// class FlyTeam;
-// class GroundTeam;
+class DragonLord;
+class SmartDragon;
+class Warrior;
+class FlyTeam;
+class GroundTeam;
 
-// class BaseItem;
-// class BaseBag;
-// class TeamBag;
+class BaseItem;
+class BaseBag;
+class TeamBag;
 
 class TestDragonWar;
 
@@ -55,23 +55,6 @@ public:
     int getReqDmg()       const;
 };
 
-// ——— Map ———
-class Map {
-private:
-    int           num_rows;
-    int           num_cols;
-    MapElement ***grid;
-
-public:
-    Map(int rows, int cols,
-        int num_obst,       Position *obst,
-        int num_gro_obst,   Position *gro_obst);
-    ~Map();
-    bool isValid(const Position & pos, MovingObject * map) const;
-    int  getNumRows()     const;
-    int  getNumCols()     const;
-};
-
 // ——— Position ———
 class Position {
 private:
@@ -86,6 +69,23 @@ public:
     void    setCol(int c);
     string  str()     const;
     bool    isEqual(int in_r, int in_c) const;
+};
+
+// ——— Map ———
+class Map {
+private:
+    int           num_rows;
+    int           num_cols;
+    MapElement ***grid;
+
+public:
+    Map(int rows, int cols,
+        int num_obst,       Position *obst,
+        int num_gro_obst,   Position *gro_obst);
+    ~Map();
+    bool isValid(const Position & pos, MovingObject * obj) const;
+    int  getNumRows()     const;
+    int  getNumCols()     const;
 };
 
 // ——— MovingObject ———
@@ -126,15 +126,15 @@ public:
 class FlyTeam : public Warrior {
 private:
     string moving_rule;
-
+    int moving_index;
 public:
     FlyTeam(int index, const string & moving_rule,
         const Position & pos, Map * map, int hp, int damage);
     // TODO
     string getMovingRule() const;
-    Position getNextPosition() const;
-    void move();
-    string str() const;
+    Position getNextPosition() override;
+    void move() override;
+    string str() const override;
     bool attack();
 
 };
@@ -142,14 +142,15 @@ public:
 class GroundTeam : public Warrior {
 private:
     string moving_rule;
+    int moving_index; 
 
 public:
     GroundTeam(int index, const string & moving_rule,
         const Position & pos, Map * map, int hp, int damage);
     // TODO
-    Position getNextPosition() const;
-    void move();
-    string str() const;
+    Position getNextPosition() override;
+    void move() override;
+    string str() const override;
     bool trap() const;
     int getTrapTurns() const;
     void setTrapTurns(int turns);
@@ -164,31 +165,95 @@ private:
 public:
     DragonLord(int index, const Position & pos, Map * map,
                FlyTeam *flyteam1, FlyTeam *flyteam2);
-    // TODO
-    Position getNextPosition() const;
-    void move();
-    string str() const;
+    Position getNextPosition() override;
+    void move() override;
+    string str() const override;
+    Position getPosition() const;
+    int manhattanDistance() const;
 };
 
 // ...................
 // ——— SmartDragon ———
 class SmartDragon : public MovingObject {
 private:
+    DragonType smartdragon_type;
+    int damage;
+    BaseItem* item;
+    MovingObject *target;
+    Position   target_pos;
 public:
-
-
+    SmartDragon(int index, const Position & init_pos, Map * map, 
+                        DragonType type, MovingObject *obj, int damage);
+    Position getNextPosition() override;
+    void move() override;
+    string str() const override;
+};
 
 // ——— BaseItem ———
 class BaseItem {
+private:
+    ItemType type;
+    int      value;
 public:
+    BaseItem(ItemType type, int value);
+    virtual ~BaseItem();
     virtual bool canUse(Warrior* w) = 0;
     virtual void use(Warrior* w) = 0;
+};
+class DragonScale : public BaseItem {
+public:
+    DragonScale() : BaseItem(DRAGONSCALE, 25) {}
+    bool canUse(Warrior* w) override {
+        return w->getHp() <= 400;
+    }
+    void use(Warrior* w) override {
+        if (canUse(w)) {
+            int current_dmg = w->getDamage();
+            w->setDamage(current_dmg + current_dmg * 25 / 100);
+        }
+    }
+};
+
+class HealingHerb : public BaseItem {
+public:
+    HealingHerb() : BaseItem(HEALINGHERB, 20) {}
+    bool canUse(Warrior* w) override {
+        return w->getHp() <= 100;
+    }
+
+    void use(Warrior* w) override {
+        if (canUse(w)) {
+            int current_hp = w->getHp();
+            w->setHp(current_hp + current_hp * 20 / 100);
+        }
+    }
+};
+
+
+class TrapEnhancer : public BaseItem {
+public:
+    TrapEnhancer() : BaseItem(TRAPENHANCER, 1) {}
+    bool canUse(Warrior* w) override {
+        return true; 
+    }
+
+    void use(Warrior* w) override {
+        GroundTeam* ground_team = dynamic_cast<GroundTeam*>(w);
+        if (ground_team) {
+            ground_team->setTrapTurns(ground_team->getTrapTurns() + 1);
+        } 
+    }
 };
 
 
 // ——— BaseBag ———
 class BaseBag {
+private:
+    int capacity;
+    BaseItem **items;
 public:
+    BaseBag(int capacity);
+    virtual ~BaseBag();
     virtual bool insert(BaseItem* item);
     virtual BaseItem* get();
     virtual BaseItem* get(ItemType itemType);
@@ -196,6 +261,19 @@ public:
 };
 // ...................
 
+
+// ——— TeamBag ———
+class TeamBag : public BaseBag {
+private:
+    Warrior *owner;
+public:
+    TeamBag(int capacity, Warrior *owner);
+    ~TeamBag();
+    bool insert(BaseItem* item) override;
+    BaseItem* get() override;
+    BaseItem* get(ItemType itemType) override;
+    bool str() const override;
+};
 
 
 // ——— ArrayMovingObject ———
@@ -212,14 +290,18 @@ public:
     bool isFull() const;
     bool add(MovingObject *mv_obj);
     string str() const;
-    // isFull, add, str,...
-
+    int size() const { return count; }
+    MovingObject* get(int index) const {
+        if (index < 0 || index >= count) {
+            return nullptr;
+        }
+        return arr_mv_objs[index];
+    }
 };
 
 // ——— Configuration ———
 class Configuration {
-    friend class DragonWarProgram;
-
+    friend class DragonWarriorsProgram;
 private:
     // TODO
     int map_num_rows, map_num_cols;
@@ -242,6 +324,11 @@ private:
     int groundteam_init_damage;
     Position dragonlord_init_pos;
     int num_steps;
+    
+    // Helper function to parse position arrays
+    void parsePositionArray(const string& value, Position* arr, int count);
+    // Helper function to remove parentheses from position strings
+    string removeParentheses(const string& value);
 
 public:
     Configuration(const string & filepath);
@@ -270,10 +357,13 @@ public:
     bool   isStop() const;
 
     void printResult() const {
-        if (flyteam1->getCurrentPosition().isEqual(dragonlord->getCurrentPosition())) {
+        if (flyteam1->getCurrentPosition().isEqual(
+                dragonlord->getCurrentPosition().getRow(),
+                dragonlord->getCurrentPosition().getCol())) {
             cout << "FlyTeam1 defeated the DragonLord!" << endl;
         }
-        else if (flyteam2->getCurrentPosition().isEqual(dragonlord->getCurrentPosition())) {
+        else if (flyteam2->getCurrentPosition().isEqual(dragonlord->getCurrentPosition().getRow(),
+                dragonlord->getCurrentPosition().getCol())) {
             cout << "FlyTeam2 defeated the DragonLord!" << endl;
         }
         else {

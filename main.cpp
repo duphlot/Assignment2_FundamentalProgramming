@@ -117,8 +117,8 @@ public:
 };
 
 int main(int argc, const char * argv[]) {
-    // TestDragonWar::satc_01();
-    // TestDragonWar::satc_02();
+    TestDragonWar::satc_01();
+    TestDragonWar::satc_02();
     // TestDragonWar::satc_03();
     return 0;
 }
