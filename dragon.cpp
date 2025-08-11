@@ -1,4 +1,4 @@
-#include "dragons.h"
+#include "dragon.h"
 
 ////////////////////////////////////////////////////////////////////////
 /// STUDENT'S ANSWER BEGINS HERE
@@ -7,7 +7,9 @@
 ////////////////////////////////////////////////////////////////////////
 
 // 3.1 
-MapElement::MapElement(ElementType t, int r): type(t), req_dmg(r) {}
+
+MapElement::MapElement(ElementType type, int in_req_dmg): type(type), req_dmg(in_req_dmg) {   
+}
 MapElement::~MapElement() {}
 ElementType MapElement::getType() const { return type; }
 int MapElement::getReqDmg() const {return req_dmg; }
@@ -73,7 +75,6 @@ bool Position::isEqual(int in_r, int in_c) const {
     return (r_ == in_r && c_ == in_c);
 }
 
-// Define the static member
 const Position Position::npos(-1, -1);
 
 bool operator!=(const Position& lhs, const Position& rhs) {
@@ -99,12 +100,26 @@ string MovingObject::str() const {
 // 3.5
 Warrior::Warrior(int index, const Position & pos, Map * map,
                 const string & name, int hp, int damage)
-    : MovingObject(index, pos, map, name), hp(hp), damage(damage) {}
+    : MovingObject(index, pos, map, name), hp(hp), damage(damage) {
+        this->hp = max(this->hp, 0);
+        this->hp = min(this->hp, 500);
+
+        this->damage = max(this->damage, 0);
+        this->damage = min(this->damage, 900);
+    }
 Warrior::~Warrior() {}
 int Warrior::getHp() const { return hp; }
 int Warrior::getDamage() const { return damage; }
-void Warrior::setHp(int new_hp) { hp = new_hp; }
-void Warrior::setDamage(int new_damage) { damage = new_damage; }
+void Warrior::setHp(int new_hp) { 
+    hp = new_hp;
+    hp = max(hp, 0);
+    hp = min(hp, 500);
+}
+void Warrior::setDamage(int new_damage) { 
+    damage = new_damage;
+    damage = max(damage, 0);
+    damage = min(damage, 900);
+}
 BaseBag* Warrior::getBag() const {
     // TODO: Implement this method
     return nullptr;
@@ -113,12 +128,19 @@ BaseBag* Warrior::getBag() const {
 // 3.6 
 FlyTeam::FlyTeam(int index, const string & moving_rule,
                  const Position & pos, Map * map, int hp, int damage)
-    : Warrior(index, pos, map, "FlyTeam", hp, damage), moving_rule(moving_rule), moving_index(0) {}
+    : Warrior(index, pos, map, "FlyTeam", hp, damage), moving_rule(moving_rule), moving_index() {
+        hp = max(hp, 0);
+        hp = min(hp, 500);
+
+        damage = max(damage, 0);
+        damage = min(damage, 900);
+    }
 string FlyTeam::getMovingRule() const { return moving_rule; }
 Position FlyTeam::getNextPosition() {
     if (moving_rule.empty()) return Position::npos;
     
     char direction = moving_rule[moving_index];
+    //xxcout<<moving_index<<" "<<direction<<endl;
     Position next_pos = pos;
     if (direction == 'U') {
         next_pos.setRow(pos.getRow() - 1);
@@ -132,14 +154,19 @@ Position FlyTeam::getNextPosition() {
     return next_pos;
 }
 void FlyTeam::move() {
-    Position next_pos = getNextPosition();
-    if (map->isValid(next_pos, this)) {
-        pos = next_pos;
-        moving_index = (moving_index + 1) % moving_rule.size();
+    for (int i = 0; i < moving_rule.size(); ++i) {
+        moving_index %= moving_rule.size();
+        Position next_pos = getNextPosition();
+        if (map->isValid(next_pos, this)) {
+            pos = next_pos;
+            moving_index = (moving_index + 1) % moving_rule.size();
+        }
     }
 }
 string FlyTeam::str() const {
-    return "FlyTeam[index=" + to_string(index) + ";pos=" + pos.str() + ";moving_rule=" + moving_rule + "]";
+    int tempIndex = max(index,1);
+    tempIndex = min(tempIndex, 2);
+    return "FlyTeam" + to_string(tempIndex) + "[index=" + to_string(index) + ";pos=" + pos.str() + ";moving_rule=" + moving_rule + "]";
 }
 bool FlyTeam::attack() {
     
@@ -149,7 +176,13 @@ bool FlyTeam::attack() {
 // 3.7
 GroundTeam::GroundTeam(int index, const string & moving_rule,
                        const Position & pos, Map * map, int hp, int damage)
-    : Warrior(index, pos, map, "GroundTeam", hp, damage), moving_rule(moving_rule), moving_index(0) {}
+    : Warrior(index, pos, map, "GroundTeam", hp, damage), moving_rule(moving_rule), moving_index() {
+        this->hp = max(this->hp, 0);
+        this->hp = min(this->hp, 500);
+
+        this->damage = max(this->damage, 0);
+        this->damage = min(this->damage, 900);
+    }
 Position GroundTeam::getNextPosition() {
     if (moving_rule.empty()) return Position::npos;
     
@@ -167,10 +200,13 @@ Position GroundTeam::getNextPosition() {
     return next_pos;
 }
 void GroundTeam::move() {
-    Position next_pos = getNextPosition();
-    if (map->isValid(next_pos, this)) {
-        pos = next_pos;
-        moving_index = (moving_index + 1) % moving_rule.size();
+    for (int i = 0; i < moving_rule.size(); ++i) {
+        moving_index %= moving_rule.size();
+        Position next_pos = getNextPosition();
+        if (map->isValid(next_pos, this)) {
+            pos = next_pos;
+            moving_index = (moving_index + 1) % moving_rule.size();
+        }
     }
 }
 string GroundTeam::str() const {
@@ -186,7 +222,7 @@ void GroundTeam::setTrapTurns(int turns) {
 
 // 3.8
 DragonLord::DragonLord(int index, const Position & pos, Map * map,
-                       FlyTeam *flyteam1, FlyTeam *flyteam2)
+                       FlyTeam *flyteam1, FlyTeam *flyteam2, GroundTeam *ground_team)
     : MovingObject(index, pos, map, "DragonLord"), flyteam1(flyteam1), flyteam2(flyteam2) {}
 
 Position DragonLord::getPosition() const {
@@ -229,10 +265,6 @@ ArrayMovingObject::ArrayMovingObject(int capacity)
     arr_mv_objs = new MovingObject*[capacity];
 }
 ArrayMovingObject::~ArrayMovingObject() {
-    // Don't delete the objects themselves as they are managed elsewhere
-    // for (int i = 0; i < count; ++i) {
-    //     delete arr_mv_objs[i];
-    // }
     delete[] arr_mv_objs;
 }
 bool ArrayMovingObject::isFull() const {
@@ -267,7 +299,6 @@ Configuration::Configuration(const string & filepath): map_num_rows(0), map_num_
     groundteam_moving_rule(""), groundteam_init_pos(), groundteam_init_hp(0),
     groundteam_init_damage(0), dragonlord_init_pos(), num_steps(0) {
     
-    //readfile
     ifstream file(filepath);
     
     if (!file.is_open()) {
@@ -294,7 +325,9 @@ Configuration::Configuration(const string & filepath): map_num_rows(0), map_num_
         } else if (key == "NUM_OBSTACLE") {
             num_obstacles = stoi(value);
         } else if (key == "ARRAY_OBSTACLE") {
-            // Parse array format [(1,2);(2,3);(3,4)]
+            if (num_obstacles == 0) {
+                num_obstacles = countPositionsInArray(value);
+            }
             if (num_obstacles > 0) {
                 arr_obstacles = new Position[num_obstacles];
                 parsePositionArray(value, arr_obstacles, num_obstacles);
@@ -302,7 +335,9 @@ Configuration::Configuration(const string & filepath): map_num_rows(0), map_num_
         } else if (key == "NUM_GROUND_OBSTACLE") {
             num_ground_obstacles = stoi(value);
         } else if (key == "ARRAY_GROUND_OBSTACLE") {
-            // Parse array format [(4,5)]
+            if (num_ground_obstacles == 0) {
+                num_ground_obstacles = countPositionsInArray(value);
+            }
             if (num_ground_obstacles > 0) {
                 arr_ground_obstacles = new Position[num_ground_obstacles];
                 parsePositionArray(value, arr_ground_obstacles, num_ground_obstacles);
@@ -315,6 +350,8 @@ Configuration::Configuration(const string & filepath): map_num_rows(0), map_num_
             flyteam1_init_hp = stoi(value);
         } else if (key == "FLYTEAM1_INIT_DMG") {
             flyteam1_init_damage = stoi(value);
+        } else if (key == "FLYTEAM1_INIT_DAMAGE") {
+            flyteam1_init_damage = stoi(value);
         } else if (key == "FLYTEAM2_MOVING_RULE") {
             flyteam2_moving_rule = value;
         } else if (key == "FLYTEAM2_INIT_POS") {
@@ -323,6 +360,8 @@ Configuration::Configuration(const string & filepath): map_num_rows(0), map_num_
             flyteam2_init_hp = stoi(value);
         } else if (key == "FLYTEAM2_INIT_DMG") {
             flyteam2_init_damage = stoi(value);
+        } else if (key == "FLYTEAM2_INIT_DAMAGE") {
+            flyteam2_init_damage = stoi(value);
         } else if (key == "GROUNDTEAM_MOVING_RULE") {
             groundteam_moving_rule = value;
         } else if (key == "GROUNDTEAM_INIT_POS") {
@@ -330,6 +369,8 @@ Configuration::Configuration(const string & filepath): map_num_rows(0), map_num_
         } else if (key == "GROUNDTEAM_INIT_HP") {
             groundteam_init_hp = stoi(value);
         } else if (key == "GROUNDTEAM_INIT_DMG") {
+            groundteam_init_damage = stoi(value);
+        } else if (key == "GROUNDTEAM_INIT_DAMAGE") {
             groundteam_init_damage = stoi(value);
         } else if (key == "DRAGONLORD_INIT_POS") {
             dragonlord_init_pos = Position(removeParentheses(value));
@@ -341,11 +382,32 @@ Configuration::Configuration(const string & filepath): map_num_rows(0), map_num_
     file.close();
 }
 
-void Configuration::parsePositionArray(const string& value, Position* arr, int count) {
-    // Parse format like [(1,2);(2,3);(3,4)] or [(4,5)]
+int Configuration::countPositionsInArray(const string& value) {
     string processed = value;
     
-    // Remove brackets [ and ]
+    if (!processed.empty() && processed[0] == '[') {
+        processed = processed.substr(1);
+    }
+    if (!processed.empty() && processed.back() == ']') {
+        processed = processed.substr(0, processed.length() - 1);
+    }
+    
+    if (processed.empty()) {
+        return 0;
+    }
+    
+    int count = 1;
+    for (char c : processed) {
+        if (c == ';') {
+            count++;
+        }
+    }
+    return count;
+}
+
+void Configuration::parsePositionArray(const string& value, Position* arr, int count) {
+    string processed = value;
+
     if (!processed.empty() && processed[0] == '[') {
         processed = processed.substr(1);
     }
@@ -364,7 +426,6 @@ void Configuration::parsePositionArray(const string& value, Position* arr, int c
         
         string pos_str = processed.substr(start, end - start);
         
-        // Remove parentheses and parse (r,c)
         if (!pos_str.empty() && pos_str[0] == '(') {
             pos_str = pos_str.substr(1);
         }
@@ -386,11 +447,9 @@ void Configuration::parsePositionArray(const string& value, Position* arr, int c
 
 string Configuration::removeParentheses(const string& value) {
     string result = value;
-    // Remove opening parenthesis
     if (!result.empty() && result[0] == '(') {
         result = result.substr(1);
     }
-    // Remove closing parenthesis
     if (!result.empty() && result.back() == ')') {
         result = result.substr(0, result.length() - 1);
     }
@@ -406,9 +465,8 @@ string Configuration::str() const {
     result += "MAP_NUM_ROWS=" + to_string(map_num_rows) + "\n";
     result += "MAP_NUM_COLS=" + to_string(map_num_cols) + "\n";
     result += "MAX_NUM_MOVING_OBJECTS=" + to_string(max_num_moving_objects) + "\n";
-    result += "NUM_OBSTACLES=" + to_string(num_obstacles) + "\n";
-    result += "NUM_GROUND_OBSTACLES=" + to_string(num_ground_obstacles) + "\n";
-    result += "ARRAY_OBSTACLES=[";
+    result += "NUM_OBSTACLE=" + to_string(num_obstacles) + "\n";
+    result += "ARRAY_OBSTACLE=[";
     for (int i = 0; i < num_obstacles; ++i) {
         result += arr_obstacles[i].str();
         if (i < num_obstacles - 1) {
@@ -416,8 +474,8 @@ string Configuration::str() const {
         }
     }
     result += "]\n";
-    result += "NUM_GROUND_OBSTACLES=" + to_string(num_ground_obstacles) + "\n";
-    result += "ARRAY_GROUND_OBSTACLES=[";
+    result += "NUM_GROUND_OBSTACLE=" + to_string(num_ground_obstacles) + "\n";
+    result += "ARRAY_GROUND_OBSTACLE=[";
     for (int i = 0; i < num_ground_obstacles; ++i) {
         result += arr_ground_obstacles[i].str();
         if (i < num_ground_obstacles - 1) {
@@ -428,29 +486,29 @@ string Configuration::str() const {
     result += "FLYTEAM1_MOVING_RULE=" + flyteam1_moving_rule + "\n";
     result += "FLYTEAM1_INIT_POS=" + flyteam1_init_pos.str() + "\n";
     result += "FLYTEAM1_INIT_HP=" + to_string(flyteam1_init_hp) + "\n";
-    result += "FLYTEAM1_INIT_DMG=" + to_string(flyteam1_init_damage) + "\n";
+    result += "FLYTEAM1_INIT_EXP=" + to_string(flyteam1_init_damage) + "\n";
     result += "FLYTEAM2_MOVING_RULE=" + flyteam2_moving_rule + "\n";
     result += "FLYTEAM2_INIT_POS=" + flyteam2_init_pos.str() + "\n";
     result += "FLYTEAM2_INIT_HP=" + to_string(flyteam2_init_hp) + "\n";
-    result += "FLYTEAM2_INIT_DMG=" + to_string(flyteam2_init_damage) + "\n";
+    result += "FLYTEAM2_INIT_EXP=" + to_string(flyteam2_init_damage) + "\n";
     result += "GROUNDTEAM_MOVING_RULE=" + groundteam_moving_rule + "\n";
     result += "GROUNDTEAM_INIT_POS=" + groundteam_init_pos.str() + "\n";
     result += "GROUNDTEAM_INIT_HP=" + to_string(groundteam_init_hp) + "\n";
-    result += "GROUNDTEAM_INIT_DMG=" + to_string(groundteam_init_damage) + "\n";
+    result += "GROUNDTEAM_INIT_EXP=" + to_string(groundteam_init_damage) + "\n";
     result += "DRAGONLORD_INIT_POS=" + dragonlord_init_pos.str() + "\n";
     result += "NUM_STEPS=" + to_string(num_steps)+ "\n";
     result += "]";
     return result;
 }
-
 //3.11
 
 // 3.12
-// SmartDragon implementation
 SmartDragon::SmartDragon(int index, const Position & init_pos, Map * map, 
                          DragonType type, MovingObject *obj, int damage)
     : MovingObject(index, init_pos, map, "SmartDragon"), smartdragon_type(type), 
       damage(damage), item(nullptr), target(obj), target_pos(init_pos) {
+        this->damage = max(this->damage, 0);
+        this->damage = min(this->damage, 900);
 }
 Position SmartDragon::getNextPosition() {
     if (smartdragon_type == SD1 || smartdragon_type == SD2) {
@@ -534,6 +592,64 @@ BaseItem* BaseBag::get(ItemType itemType) {
 bool BaseBag::str() const {
     // TODO: Implement string representation
     return true;
+}
+
+// DragonWarriorsProgram implementation
+DragonWarriorsProgram::DragonWarriorsProgram(const string &config_file_path) {
+    // Initialize all pointers to nullptr
+    config = nullptr;
+    flyteam1 = nullptr;
+    flyteam2 = nullptr;
+    groundteam = nullptr;
+    dragonlord = nullptr;
+    map = nullptr;
+    arr_mv_objs = nullptr;
+    
+    // Load configuration from file
+    config = new Configuration(config_file_path);
+    
+    // Create map with obstacles from configuration
+    map = new Map(config->map_num_rows, config->map_num_cols, 
+                  config->num_obstacles, config->arr_obstacles,
+                  config->num_ground_obstacles, config->arr_ground_obstacles);
+    
+    // Create FlyTeam1
+    flyteam1 = new FlyTeam(1, config->flyteam1_moving_rule, 
+                           config->flyteam1_init_pos, map,
+                           config->flyteam1_init_hp, config->flyteam1_init_damage);
+    
+    // Create FlyTeam2  
+    flyteam2 = new FlyTeam(2, config->flyteam2_moving_rule,
+                           config->flyteam2_init_pos, map,
+                           config->flyteam2_init_hp, config->flyteam2_init_damage);
+    
+    // Create GroundTeam
+    groundteam = new GroundTeam(3, config->groundteam_moving_rule,
+                                config->groundteam_init_pos, map,
+                                config->groundteam_init_hp, config->groundteam_init_damage);
+    
+    // Create DragonLord
+    dragonlord = new DragonLord(4, config->dragonlord_init_pos, map,
+                                flyteam1, flyteam2, groundteam);
+    
+    // TODO: Initialize arr_mv_objs if needed
+}
+
+DragonWarriorsProgram::~DragonWarriorsProgram() {
+    // Clean up dynamically allocated memory
+    delete config;
+    delete flyteam1;
+    delete flyteam2;
+    delete groundteam;
+    delete dragonlord;
+    delete map;
+    delete arr_mv_objs;
+}
+
+bool DragonWarriorsProgram::isStop() const {
+    if (!flyteam1 || !flyteam2 || !groundteam || !dragonlord) return true;
+    if (flyteam1->getHp() <= 0 && flyteam2->getHp() <= 0 && groundteam->getHp() <= 0) return true;
+    return false;
 }
 
 

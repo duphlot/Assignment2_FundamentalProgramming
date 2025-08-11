@@ -164,7 +164,7 @@ private:
 
 public:
     DragonLord(int index, const Position & pos, Map * map,
-               FlyTeam *flyteam1, FlyTeam *flyteam2);
+               FlyTeam *flyteam1, FlyTeam *flyteam2, GroundTeam *ground_team);
     Position getNextPosition() override;
     void move() override;
     string str() const override;
@@ -325,33 +325,30 @@ private:
     Position dragonlord_init_pos;
     int num_steps;
     
-    // Helper function to parse position arrays
     void parsePositionArray(const string& value, Position* arr, int count);
-    // Helper function to remove parentheses from position strings
     string removeParentheses(const string& value);
+    int countPositionsInArray(const string& value);
 
 public:
     Configuration(const string & filepath);
     ~Configuration();
     string str() const;
+    int getFlyTeam1InitHP() const { return flyteam1_init_hp; }
 };
 
 // ——— DragonWarriorsProgram ———
 class DragonWarriorsProgram {
 private:
-    // Sample attributes
-
     Configuration      *config;
-
+    Map                *map;
+    ArrayMovingObject  *arr_mv_objs;
+    
+public:
     FlyTeam            *flyteam1;
     FlyTeam            *flyteam2;
     GroundTeam         *groundteam;
     DragonLord         *dragonlord;
 
-    Map                *map;
-    ArrayMovingObject  *arr_mv_objs;
-    
-public:
     DragonWarriorsProgram(const string &config_file_path);
 
     bool   isStop() const;
@@ -378,7 +375,6 @@ public:
     }
 
     void run(bool verbose) {
-        // Note: This is a sample code. You can change the implementation as you like.
         // TODO
         for (int istep = 0; istep < config->num_steps; ++istep) {
             for (int i = 0; i < arr_mv_objs->size(); ++i) {
