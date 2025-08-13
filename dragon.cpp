@@ -57,8 +57,24 @@ Position::Position(int r, int c): r_(r), c_(c) {}
 Position::Position(const string &str_pos) {
     size_t comma_pos = str_pos.find(',');
     if (comma_pos != string::npos) {
-        r_ = stoi(str_pos.substr(1, comma_pos));
-        c_ = stoi(str_pos.substr(comma_pos+1));
+        string working_str = str_pos;
+        
+        if (!working_str.empty() && working_str[0] == '(') {
+            working_str = working_str.substr(1);
+            comma_pos--; 
+        }
+        if (!working_str.empty() && working_str.back() == ')') {
+            working_str = working_str.substr(0, working_str.length() - 1);
+        }
+        
+        comma_pos = working_str.find(',');
+        if (comma_pos != string::npos) {
+            r_ = stoi(working_str.substr(0, comma_pos));
+            c_ = stoi(working_str.substr(comma_pos + 1));
+        } else {
+            r_ = 0;
+            c_ = 0;
+        }
     } else {
         r_ = 0;
         c_ = 0;
@@ -341,13 +357,13 @@ Configuration::Configuration(const string & filepath): map_num_rows(0), map_num_
         string value = line.substr(equal_pos + 1);
         
         if (key == "MAP_NUM_ROWS") {
-            map_num_rows = stoi(value);
+            if (!value.empty()) map_num_rows = stoi(value);
         } else if (key == "MAP_NUM_COLS") {
-            map_num_cols = stoi(value);
+            if (!value.empty()) map_num_cols = stoi(value);
         } else if (key == "MAX_NUM_MOVING_OBJECTS") {
-            max_num_moving_objects = stoi(value);
+            if (!value.empty()) max_num_moving_objects = stoi(value);
         } else if (key == "NUM_OBSTACLE") {
-            num_obstacles = stoi(value);
+            if (!value.empty()) num_obstacles = stoi(value);
         } else if (key == "ARRAY_OBSTACLE") {
             if (num_obstacles == 0) {
                 num_obstacles = countPositionsInArray(value);
@@ -357,7 +373,7 @@ Configuration::Configuration(const string & filepath): map_num_rows(0), map_num_
                 parsePositionArray(value, arr_obstacles, num_obstacles);
             }
         } else if (key == "NUM_GROUND_OBSTACLE") {
-            num_ground_obstacles = stoi(value);
+            if (!value.empty()) num_ground_obstacles = stoi(value);
         } else if (key == "ARRAY_GROUND_OBSTACLE") {
             if (num_ground_obstacles == 0) {
                 num_ground_obstacles = countPositionsInArray(value);
@@ -371,35 +387,35 @@ Configuration::Configuration(const string & filepath): map_num_rows(0), map_num_
         } else if (key == "FLYTEAM1_INIT_POS") {
             flyteam1_init_pos = Position(removeParentheses(value));
         } else if (key == "FLYTEAM1_INIT_HP") {
-            flyteam1_init_hp = stoi(value);
+            if (!value.empty()) flyteam1_init_hp = stoi(value);
         } else if (key == "FLYTEAM1_INIT_DMG") {
-            flyteam1_init_damage = stoi(value);
+            if (!value.empty()) flyteam1_init_damage = stoi(value);
         } else if (key == "FLYTEAM1_INIT_DAMAGE") {
-            flyteam1_init_damage = stoi(value);
+            if (!value.empty()) flyteam1_init_damage = stoi(value);
         } else if (key == "FLYTEAM2_MOVING_RULE") {
             flyteam2_moving_rule = value;
         } else if (key == "FLYTEAM2_INIT_POS") {
             flyteam2_init_pos = Position(removeParentheses(value));
         } else if (key == "FLYTEAM2_INIT_HP") {
-            flyteam2_init_hp = stoi(value);
+            if (!value.empty()) flyteam2_init_hp = stoi(value);
         } else if (key == "FLYTEAM2_INIT_DMG") {
-            flyteam2_init_damage = stoi(value);
+            if (!value.empty()) flyteam2_init_damage = stoi(value);
         } else if (key == "FLYTEAM2_INIT_DAMAGE") {
-            flyteam2_init_damage = stoi(value);
+            if (!value.empty()) flyteam2_init_damage = stoi(value);
         } else if (key == "GROUNDTEAM_MOVING_RULE") {
             groundteam_moving_rule = value;
         } else if (key == "GROUNDTEAM_INIT_POS") {
             groundteam_init_pos = Position(removeParentheses(value));
         } else if (key == "GROUNDTEAM_INIT_HP") {
-            groundteam_init_hp = stoi(value);
+            if (!value.empty()) groundteam_init_hp = stoi(value);
         } else if (key == "GROUNDTEAM_INIT_DMG") {
-            groundteam_init_damage = stoi(value);
+            if (!value.empty()) groundteam_init_damage = stoi(value);
         } else if (key == "GROUNDTEAM_INIT_DAMAGE") {
-            groundteam_init_damage = stoi(value);
+            if (!value.empty()) groundteam_init_damage = stoi(value);
         } else if (key == "DRAGONLORD_INIT_POS") {
             dragonlord_init_pos = Position(removeParentheses(value));
         } else if (key == "NUM_STEPS") {
-            num_steps = stoi(value);
+            if (!value.empty()) num_steps = stoi(value);
         }
     }
     

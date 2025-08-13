@@ -206,6 +206,7 @@ public:
         if (type == DRAGONSCALE) return "DragonScale";
         else if (type == HEALINGHERB) return "HealingHerb";
         else if (type == TRAPENHANCER) return "TrapEnhancer";
+        return "";
     }
 };
 class DragonScale : public BaseItem {

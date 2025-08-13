@@ -13,14 +13,10 @@
 using namespace std;
 
 int main(int argc, const char * argv[]) {
-    Position flyteam1_pos("(0,120)");
-    cout << flyteam1_pos.str() << endl;
-
-
-    // cout << "----- Sample Testcase 15 -----" << endl;
-    // DragonWarriorsProgram * myProgram = new DragonWarriorsProgram("sa_tc_01_config");
-    // cout << myProgram->flyteam1->str() << endl;
-    // cout << myProgram->flyteam2->str() << endl;
-    // delete myProgram;
+    cout << "----- Sample Testcase 11 -----" << endl;
+Configuration * config = new Configuration("sa_tc_01_config");
+cout << config->getFlyTeam1InitHP() << endl;
+cout << config->str() << endl;
+delete config;
     return 0;
 }
