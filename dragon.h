@@ -86,6 +86,7 @@ public:
     bool isValid(const Position & pos, MovingObject * obj) const;
     int  getNumRows()     const;
     int  getNumCols()     const;
+    static const Position npos;
 };
 
 // ——— MovingObject ———
@@ -135,7 +136,7 @@ public:
     Position getNextPosition() override;
     void move() override;
     string str() const override;
-    bool attack();
+    bool attack(DragonLord *dragonlord);
 
 };
 
@@ -151,7 +152,7 @@ public:
     Position getNextPosition() override;
     void move() override;
     string str() const override;
-    bool trap() const;
+    bool trap(DragonLord *dragonlord);
     int getTrapTurns() const;
     void setTrapTurns(int turns);
 };
@@ -199,6 +200,13 @@ public:
     virtual ~BaseItem();
     virtual bool canUse(Warrior* w) = 0;
     virtual void use(Warrior* w) = 0;
+    int getValue() const { return value; }
+    ItemType getType() const { return type; }
+    string str() const {
+        if (type == DRAGONSCALE) return "DragonScale";
+        else if (type == HEALINGHERB) return "HealingHerb";
+        else if (type == TRAPENHANCER) return "TrapEnhancer";
+    }
 };
 class DragonScale : public BaseItem {
 public:
@@ -238,7 +246,7 @@ public:
     }
 
     void use(Warrior* w) override {
-        GroundTeam* ground_team = dynamic_cast<GroundTeam*>(w);
+        GroundTeam* ground_team = (GroundTeam*)(w);
         if (ground_team) {
             ground_team->setTrapTurns(ground_team->getTrapTurns() + 1);
         } 
@@ -250,6 +258,7 @@ public:
 class BaseBag {
 private:
     int capacity;
+    int count;
     BaseItem **items;
 public:
     BaseBag(int capacity);
@@ -257,8 +266,10 @@ public:
     virtual bool insert(BaseItem* item);
     virtual BaseItem* get();
     virtual BaseItem* get(ItemType itemType);
-    virtual bool str() const;
+    virtual string str() const;
+
 };
+
 // ...................
 
 
@@ -267,12 +278,12 @@ class TeamBag : public BaseBag {
 private:
     Warrior *owner;
 public:
-    TeamBag(int capacity, Warrior *owner);
+    TeamBag(Warrior *owner);
     ~TeamBag();
     bool insert(BaseItem* item) override;
     BaseItem* get() override;
     BaseItem* get(ItemType itemType) override;
-    bool str() const override;
+    string str() const override;
 };
 
 

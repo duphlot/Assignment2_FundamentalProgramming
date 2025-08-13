@@ -57,8 +57,8 @@ Position::Position(int r, int c): r_(r), c_(c) {}
 Position::Position(const string &str_pos) {
     size_t comma_pos = str_pos.find(',');
     if (comma_pos != string::npos) {
-        r_ = stoi(str_pos.substr(0, comma_pos));
-        c_ = stoi(str_pos.substr(comma_pos + 1));
+        r_ = stoi(str_pos.substr(1, comma_pos));
+        c_ = stoi(str_pos.substr(comma_pos+1));
     } else {
         r_ = 0;
         c_ = 0;
@@ -111,15 +111,17 @@ Warrior::~Warrior() {}
 int Warrior::getHp() const { return hp; }
 int Warrior::getDamage() const { return damage; }
 void Warrior::setHp(int new_hp) { 
-    hp = new_hp;
-    hp = max(hp, 0);
-    hp = min(hp, 500);
+    if (new_hp < 0) hp = 0;
+    else if (new_hp > 500) hp = 500;
+    else hp = new_hp;
 }
 void Warrior::setDamage(int new_damage) { 
-    damage = new_damage;
-    damage = max(damage, 0);
-    damage = min(damage, 900);
+    if (new_damage < 0) damage = 0;
+    else if (new_damage > 900) damage = 900;
+    else damage = new_damage;
 }
+
+
 BaseBag* Warrior::getBag() const {
     // TODO: Implement this method
     return nullptr;
@@ -168,8 +170,15 @@ string FlyTeam::str() const {
     tempIndex = min(tempIndex, 2);
     return "FlyTeam" + to_string(tempIndex) + "[index=" + to_string(index) + ";pos=" + pos.str() + ";moving_rule=" + moving_rule + "]";
 }
-bool FlyTeam::attack() {
+bool FlyTeam::attack(DragonLord *dragonlord) {
+    if (dragonlord == nullptr) return false;
     
+    Position dragonlord_pos = dragonlord->getPosition();
+    Position flyteam_pos = getCurrentPosition();
+    
+    if (flyteam_pos.isEqual(dragonlord_pos.getRow(), dragonlord_pos.getCol())) {
+        return true;
+    }
     return false;
 }
 
@@ -210,14 +219,28 @@ void GroundTeam::move() {
     }
 }
 string GroundTeam::str() const {
-    // TODO: Implement string representation
-    return "GroundTeam[index=" + to_string(index) + ";pos=" + pos.str() + ";moving_rule=" + moving_rule + "]";
+    int tempIndex = max(index,1);
+    tempIndex = min(tempIndex, 2);
+    return "GroundTeam[index=" + to_string(tempIndex) + ";pos=" + pos.str() + ";moving_rule=" + moving_rule + "]";
 }
+
+bool GroundTeam::trap(DragonLord *dragonlord) {
+    if (dragonlord == nullptr) return false;
+
+    Position dragonlord_pos = dragonlord->getPosition();
+    Position groundteam_pos = getCurrentPosition();
+
+    if (groundteam_pos.isEqual(dragonlord_pos.getRow(), dragonlord_pos.getCol())) {
+        return true;
+    }
+    return false;
+}
+
 int GroundTeam::getTrapTurns() const {
     return moving_index;
 }
 void GroundTeam::setTrapTurns(int turns) {
-
+    moving_index = max(turns, 0);
 }
 
 // 3.8
@@ -248,6 +271,7 @@ Position DragonLord::getNextPosition() {
     }
 }
 
+// cai nay sai nha, de cho do trong
 void DragonLord::move() {
     Position next_pos = getNextPosition();
     if (map->isValid(next_pos, this)) {
@@ -486,15 +510,15 @@ string Configuration::str() const {
     result += "FLYTEAM1_MOVING_RULE=" + flyteam1_moving_rule + "\n";
     result += "FLYTEAM1_INIT_POS=" + flyteam1_init_pos.str() + "\n";
     result += "FLYTEAM1_INIT_HP=" + to_string(flyteam1_init_hp) + "\n";
-    result += "FLYTEAM1_INIT_EXP=" + to_string(flyteam1_init_damage) + "\n";
+    result += "FLYTEAM1_INIT_DAMAGE=" + to_string(flyteam1_init_damage) + "\n";
     result += "FLYTEAM2_MOVING_RULE=" + flyteam2_moving_rule + "\n";
     result += "FLYTEAM2_INIT_POS=" + flyteam2_init_pos.str() + "\n";
     result += "FLYTEAM2_INIT_HP=" + to_string(flyteam2_init_hp) + "\n";
-    result += "FLYTEAM2_INIT_EXP=" + to_string(flyteam2_init_damage) + "\n";
+    result += "FLYTEAM2_INIT_DAMAGE=" + to_string(flyteam2_init_damage) + "\n";
     result += "GROUNDTEAM_MOVING_RULE=" + groundteam_moving_rule + "\n";
     result += "GROUNDTEAM_INIT_POS=" + groundteam_init_pos.str() + "\n";
     result += "GROUNDTEAM_INIT_HP=" + to_string(groundteam_init_hp) + "\n";
-    result += "GROUNDTEAM_INIT_EXP=" + to_string(groundteam_init_damage) + "\n";
+    result += "GROUNDTEAM_INIT_DAMAGE=" + to_string(groundteam_init_damage) + "\n";
     result += "DRAGONLORD_INIT_POS=" + dragonlord_init_pos.str() + "\n";
     result += "NUM_STEPS=" + to_string(num_steps)+ "\n";
     result += "]";
@@ -547,12 +571,10 @@ BaseItem::BaseItem(ItemType type, int value) : type(type), value(value) {}
 BaseItem::~BaseItem() {}
 
 // Base Bag implementation
-BaseBag::BaseBag(int capacity) : capacity(capacity) {
-    items = new BaseItem*[capacity];
-    for (int i = 0; i < capacity; ++i) {
-        items[i] = nullptr;
+BaseBag::BaseBag(int capacity) : capacity(capacity), count(0) {
+        items = new BaseItem*[capacity];
+        for (int i = 0; i < capacity; ++i) items[i] = nullptr;
     }
-}
 BaseBag::~BaseBag() {
     for (int i = 0; i < capacity; ++i) {
         delete items[i];
@@ -574,10 +596,21 @@ bool BaseBag::insert(BaseItem* item) {
 }
 
 BaseItem* BaseBag::get() {
-    for (int i = 0; i < capacity; ++i) {
+    Warrior* owner = (Warrior*)(this); 
+    int index_first_item = -1;
+    // item dau danh sach
+    for (int i = 0; i < capacity; ++i){
         if (items[i] != nullptr) {
+            index_first_item = i;
+            break;
+        }
+    }
+
+    for (int i = 0; i < capacity; ++i) {
+        if (items[i] != nullptr && items[i]->canUse(owner)) {
             BaseItem* item = items[i];
-            items[i] = nullptr; 
+            swap(items[i],items[index_first_item]);
+            items[index_first_item] = nullptr; 
             return item;
         }
     }
@@ -585,14 +618,40 @@ BaseItem* BaseBag::get() {
 }
 
 BaseItem* BaseBag::get(ItemType itemType) {
-    // empty
+    Warrior* owner = (Warrior*)(this); 
+    int index_first_item = -1;
+    // item dau danh sach
+    for (int i = 0; i < capacity; ++i){
+        if (items[i] != nullptr) {
+            index_first_item = i;
+            break;
+        }
+    }
+
+    for (int i = 0; i < capacity; ++i) {
+        if (items[i] != nullptr && items[i]->getType() == itemType && items[i]->canUse(owner)) {
+            BaseItem* item = items[i];
+            swap(items[i],items[index_first_item]);
+            items[index_first_item] = nullptr; 
+            return item;
+        }
+    }
     return nullptr;
 }
 
-bool BaseBag::str() const {
-    // TODO: Implement string representation
-    return true;
+string BaseBag::str() const {
+    string result = "Bag[count=" + to_string(count) + ";";
+    for (int i = 0; i < capacity; ++i) {
+        if (items[i] != nullptr) {
+            result += items[i]->str() + ", ";
+        }
+    }
+    result += "]";
+    return result;
 }
+
+
+//TeamBag - chua biet lam gi
 
 // DragonWarriorsProgram implementation
 DragonWarriorsProgram::DragonWarriorsProgram(const string &config_file_path) {
@@ -631,12 +690,10 @@ DragonWarriorsProgram::DragonWarriorsProgram(const string &config_file_path) {
     // Create DragonLord
     dragonlord = new DragonLord(4, config->dragonlord_init_pos, map,
                                 flyteam1, flyteam2, groundteam);
-    
-    // TODO: Initialize arr_mv_objs if needed
+
 }
 
 DragonWarriorsProgram::~DragonWarriorsProgram() {
-    // Clean up dynamically allocated memory
     delete config;
     delete flyteam1;
     delete flyteam2;
@@ -648,7 +705,7 @@ DragonWarriorsProgram::~DragonWarriorsProgram() {
 
 bool DragonWarriorsProgram::isStop() const {
     if (!flyteam1 || !flyteam2 || !groundteam || !dragonlord) return true;
-    if (flyteam1->getHp() <= 0 && flyteam2->getHp() <= 0 && groundteam->getHp() <= 0) return true;
+    if (flyteam1->getHp() <= 1 && flyteam2->getHp() <= 1 && groundteam->getHp() <= 1) return true;
     return false;
 }
 
