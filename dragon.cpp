@@ -1,5 +1,13 @@
 #include "dragon.h"
 
+// Forward declarations for helper functions
+char getReverseDirection(char direction);
+Position getPositionInDirection(const Position& current_pos, char direction);
+bool checkLoopPattern(int obj_index, const Position& current_pos);
+void setDragonLordTrapStatus(int dragonlord_id, int trap_turns);
+bool isDragonLordTrapped(int dragonlord_id);
+void decreaseDragonLordTrapTurns(int dragonlord_id);
+
 ////////////////////////////////////////////////////////////////////////
 /// STUDENT'S ANSWER BEGINS HERE
 /// Complete the following functions
@@ -344,16 +352,51 @@ bool GroundTeam::trap(DragonLord *dragonlord) {
     Position groundteam_pos = getCurrentPosition();
 
     if (groundteam_pos.isEqual(dragonlord_pos.getRow(), dragonlord_pos.getCol())) {
+        int dragonlord_id = dragonlord_pos.getRow() * 1000 + dragonlord_pos.getCol();
+        setDragonLordTrapStatus(dragonlord_id, getTrapTurns());
+        setTrapTurns(3);
+        
         return true;
     }
     return false;
 }
 
-int GroundTeam::getTrapTurns() const {
-    return moving_index;
+void setDragonLordTrapStatus(int dragonlord_id, int trap_turns) {
+    static int trapped_turns[1000] = {0}; 
+    int hash_index = dragonlord_id % 1000;
+    trapped_turns[hash_index] = trap_turns;
 }
+
+bool isDragonLordTrapped(int dragonlord_id) {
+    static int trapped_turns[1000] = {0};
+    int hash_index = dragonlord_id % 1000;
+    return trapped_turns[hash_index] > 0;
+}
+
+void decreaseDragonLordTrapTurns(int dragonlord_id) {
+    static int trapped_turns[1000] = {0};
+    int hash_index = dragonlord_id % 1000;
+    if (trapped_turns[hash_index] > 0) {
+        trapped_turns[hash_index]--;
+    }
+}
+
+int GroundTeam::getTrapTurns() const {
+    static int default_trap_turns = 3;
+    static int current_trap_turns[10] = {3,3,3,3,3,3,3,3,3,3}; 
+    
+    if (index >= 0 && index < 10) {
+        return current_trap_turns[index];
+    }
+    return default_trap_turns;
+}
+
 void GroundTeam::setTrapTurns(int turns) {
-    moving_index = max(turns, 0);
+    static int current_trap_turns[10] = {3,3,3,3,3,3,3,3,3,3};
+    
+    if (index >= 0 && index < 10) {
+        current_trap_turns[index] = max(turns, 0);
+    }
 }
 
 // 3.8
@@ -386,6 +429,17 @@ Position DragonLord::getNextPosition() {
 
 // cai nay sai nha, de cho do trong
 void DragonLord::move() {
+    // Check if DragonLord is trapped
+    Position current_pos = getPosition();
+    int dragonlord_id = current_pos.getRow() * 1000 + current_pos.getCol();
+    
+    if (isDragonLordTrapped(dragonlord_id)) {
+        // DragonLord is trapped, cannot move but decrease trap turns
+        decreaseDragonLordTrapTurns(dragonlord_id);
+        return;
+    }
+    
+    // Normal movement logic
     Position next_pos = getNextPosition();
     if (map->isValid(next_pos, this)) {
         pos = next_pos;
