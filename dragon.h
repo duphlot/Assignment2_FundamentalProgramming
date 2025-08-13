@@ -257,7 +257,7 @@ public:
 
 // ——— BaseBag ———
 class BaseBag {
-private:
+protected:
     int capacity;
     int count;
     BaseItem **items;

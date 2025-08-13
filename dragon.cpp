@@ -154,6 +154,73 @@ FlyTeam::FlyTeam(int index, const string & moving_rule,
         damage = min(damage, 900);
     }
 string FlyTeam::getMovingRule() const { return moving_rule; }
+
+char getReverseDirection(char direction) {
+    switch(direction) {
+        case 'U': return 'D';
+        case 'D': return 'U';
+        case 'L': return 'R';
+        case 'R': return 'L';
+        default: return direction;
+    }
+}
+
+Position getPositionInDirection(const Position& current_pos, char direction) {
+    Position next_pos = current_pos;
+    if (direction == 'U') {
+        next_pos.setRow(current_pos.getRow() - 1);
+    } else if (direction == 'D') {
+        next_pos.setRow(current_pos.getRow() + 1);
+    } else if (direction == 'L') {
+        next_pos.setCol(current_pos.getCol() - 1);
+    } else if (direction == 'R') {
+        next_pos.setCol(current_pos.getCol() + 1);
+    }
+    return next_pos;
+}
+
+bool checkLoopPattern(int obj_index, const Position& current_pos) {
+    static Position position_history[10][6]; 
+    static int history_size[10] = {0};       
+    
+    if (obj_index < 0 || obj_index >= 10) return false;
+    
+    int& size = history_size[obj_index];
+    
+    if (size >= 6) {
+        for (int i = 0; i < 5; i++) {
+            position_history[obj_index][i] = position_history[obj_index][i + 1];
+        }
+        size = 5;
+    }
+    
+    position_history[obj_index][size] = current_pos;
+    size++;
+
+    if (size >= 6) {
+        bool isLoop = true;
+        for (int i = 0; i < 3; i++) {
+            Position& pos1 = position_history[obj_index][i*2];
+            Position& pos2 = position_history[obj_index][i*2+1];
+            Position& first = position_history[obj_index][0];
+            Position& second = position_history[obj_index][1];
+            
+            if (!(pos1.isEqual(first.getRow(), first.getCol()) &&
+                  pos2.isEqual(second.getRow(), second.getCol()))) {
+                isLoop = false;
+                break;
+            }
+        }
+        
+        if (isLoop) {
+            size = 0;
+            return true;
+        }
+    }
+    
+    return false;
+}
+
 Position FlyTeam::getNextPosition() {
     if (moving_rule.empty()) return Position::npos;
     
@@ -172,11 +239,26 @@ Position FlyTeam::getNextPosition() {
     return next_pos;
 }
 void FlyTeam::move() {
+    if (checkLoopPattern(index, pos)) {
+        setHp(1); 
+        return;
+    }
+    
     for (int i = 0; i < moving_rule.size(); ++i) {
         moving_index %= moving_rule.size();
-        Position next_pos = getNextPosition();
+        char current_direction = moving_rule[moving_index];
+        Position next_pos = getPositionInDirection(pos, current_direction);
+        
         if (map->isValid(next_pos, this)) {
             pos = next_pos;
+            moving_index = (moving_index + 1) % moving_rule.size();
+        } else {
+            char reverse_direction = getReverseDirection(current_direction);
+            Position reverse_pos = getPositionInDirection(pos, reverse_direction);
+            
+            if (map->isValid(reverse_pos, this)) {
+                pos = reverse_pos;
+            }
             moving_index = (moving_index + 1) % moving_rule.size();
         }
     }
@@ -225,11 +307,26 @@ Position GroundTeam::getNextPosition() {
     return next_pos;
 }
 void GroundTeam::move() {
+    if (checkLoopPattern(index, pos)) {
+        setHp(1);  
+        return;
+    }
+    
     for (int i = 0; i < moving_rule.size(); ++i) {
         moving_index %= moving_rule.size();
-        Position next_pos = getNextPosition();
+        char current_direction = moving_rule[moving_index];
+        Position next_pos = getPositionInDirection(pos, current_direction);
+        
         if (map->isValid(next_pos, this)) {
             pos = next_pos;
+            moving_index = (moving_index + 1) % moving_rule.size();
+        } else {
+            char reverse_direction = getReverseDirection(current_direction);
+            Position reverse_pos = getPositionInDirection(pos, reverse_direction);
+            
+            if (map->isValid(reverse_pos, this)) {
+                pos = reverse_pos;
+            }
             moving_index = (moving_index + 1) % moving_rule.size();
         }
     }
@@ -605,6 +702,7 @@ bool BaseBag::insert(BaseItem* item) {
     for (int i = 0; i < capacity; ++i) {
         if (items[i] == nullptr) {
             items[i] = item;
+            count++; 
             return true;
         }
     }
@@ -612,21 +710,27 @@ bool BaseBag::insert(BaseItem* item) {
 }
 
 BaseItem* BaseBag::get() {
-    Warrior* owner = (Warrior*)(this); 
-    int index_first_item = -1;
-    // item dau danh sach
-    for (int i = 0; i < capacity; ++i){
-        if (items[i] != nullptr) {
-            index_first_item = i;
-            break;
-        }
-    }
-
     for (int i = 0; i < capacity; ++i) {
-        if (items[i] != nullptr && items[i]->canUse(owner)) {
+        if (items[i] != nullptr) {
             BaseItem* item = items[i];
-            swap(items[i],items[index_first_item]);
-            items[index_first_item] = nullptr; 
+            if (i != 0) {
+                int first_pos = -1;
+                for (int j = 0; j < capacity; ++j) {
+                    if (items[j] != nullptr) {
+                        first_pos = j;
+                        break;
+                    }
+                }
+                if (first_pos != -1 && first_pos != i) {
+                    swap(items[i], items[first_pos]);
+                    items[first_pos] = nullptr;
+                } else {
+                    items[i] = nullptr; 
+                }
+            } else {
+                items[i] = nullptr; 
+            }
+            count--;
             return item;
         }
     }
@@ -634,21 +738,27 @@ BaseItem* BaseBag::get() {
 }
 
 BaseItem* BaseBag::get(ItemType itemType) {
-    Warrior* owner = (Warrior*)(this); 
-    int index_first_item = -1;
-    // item dau danh sach
-    for (int i = 0; i < capacity; ++i){
-        if (items[i] != nullptr) {
-            index_first_item = i;
-            break;
-        }
-    }
-
     for (int i = 0; i < capacity; ++i) {
-        if (items[i] != nullptr && items[i]->getType() == itemType && items[i]->canUse(owner)) {
+        if (items[i] != nullptr && items[i]->getType() == itemType) {
             BaseItem* item = items[i];
-            swap(items[i],items[index_first_item]);
-            items[index_first_item] = nullptr; 
+            if (i != 0) {
+                int first_pos = -1;
+                for (int j = 0; j < capacity; ++j) {
+                    if (items[j] != nullptr) {
+                        first_pos = j;
+                        break;
+                    }
+                }
+                if (first_pos != -1 && first_pos != i) {
+                    swap(items[i], items[first_pos]);
+                    items[first_pos] = nullptr;
+                } else {
+                    items[i] = nullptr;
+                }
+            } else {
+                items[i] = nullptr; 
+            }
+            count--;
             return item;
         }
     }
@@ -667,7 +777,72 @@ string BaseBag::str() const {
 }
 
 
-//TeamBag - chua biet lam gi
+//TeamBag implementation
+TeamBag::TeamBag(Warrior* owner) : BaseBag(10), owner(owner) {}
+
+TeamBag::~TeamBag() {
+
+}
+
+bool TeamBag::insert(BaseItem* item) {
+    return BaseBag::insert(item); 
+}
+
+BaseItem* TeamBag::get() {
+    for (int i = 0; i < capacity; ++i) {
+        if (items[i] != nullptr && items[i]->canUse(owner)) {
+            BaseItem* item = items[i];
+            if (i != 0) {
+                int first_pos = -1;
+                for (int j = 0; j < capacity; ++j) {
+                    if (items[j] != nullptr) {
+                        first_pos = j;
+                        break;
+                    }
+                }
+                if (first_pos != -1 && first_pos != i) {
+                    swap(items[i], items[first_pos]);
+                    items[first_pos] = nullptr; 
+                } else items[i] = nullptr; 
+            } else items[i] = nullptr;
+            count--; 
+            return item;
+        }
+    }
+    return nullptr; 
+}
+
+BaseItem* TeamBag::get(ItemType itemType) {
+    for (int i = 0; i < capacity; ++i) {
+        if (items[i] != nullptr && items[i]->getType() == itemType && items[i]->canUse(owner)) {
+            BaseItem* item = items[i];
+            if (i != 0) {
+                int first_pos = -1;
+                for (int j = 0; j < capacity; ++j) {
+                    if (items[j] != nullptr) {
+                        first_pos = j;
+                        break;
+                    }
+                }
+                if (first_pos != -1 && first_pos != i) {
+                    swap(items[i], items[first_pos]);
+                    items[first_pos] = nullptr; 
+                } else {
+                    items[i] = nullptr; 
+                }
+            } else {
+                items[i] = nullptr; 
+            }
+            count--; 
+            return item;
+        }
+    }
+    return nullptr;
+}
+
+string TeamBag::str() const {
+    return BaseBag::str();
+}
 
 // DragonWarriorsProgram implementation
 DragonWarriorsProgram::DragonWarriorsProgram(const string &config_file_path) {
