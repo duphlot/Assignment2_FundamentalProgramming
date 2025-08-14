@@ -1,13 +1,5 @@
 #include "dragon.h"
 
-// Forward declarations for helper functions
-char getReverseDirection(char direction);
-Position getPositionInDirection(const Position& current_pos, char direction);
-bool checkLoopPattern(int obj_index, const Position& current_pos);
-void setDragonLordTrapStatus(int dragonlord_id, int trap_turns);
-bool isDragonLordTrapped(int dragonlord_id);
-void decreaseDragonLordTrapTurns(int dragonlord_id);
-
 ////////////////////////////////////////////////////////////////////////
 /// STUDENT'S ANSWER BEGINS HERE
 /// Complete the following functions
@@ -54,11 +46,31 @@ bool Map::isValid(const Position & pos, MovingObject * obj) const {
         return false;
     }
     ElementType type = grid[pos.getRow()][pos.getCol()]->getType();
-    return (type == PATH || type == GROUND_OBSTACLE);
+    return true;
 }
 int Map::getNumRows() const { return num_rows; }
 int Map::getNumCols() const { return num_cols; }
-
+bool Map::isPath(const Position & pos) const {
+    if (pos.getRow() < 0 || pos.getRow() >= num_rows || pos.getCol() < 0 || pos.getCol() >= num_cols) {
+        return false;
+    }
+    ElementType type = grid[pos.getRow()][pos.getCol()]->getType();
+    return (type == PATH);
+}
+bool Map::isObstacle(const Position & pos) const {
+    if (pos.getRow() < 0 || pos.getRow() >= num_rows || pos.getCol() < 0 || pos.getCol() >= num_cols) {
+        return false;
+    }
+    ElementType type = grid[pos.getRow()][pos.getCol()]->getType();
+    return (type == OBSTACLE);
+}
+bool Map::isGroundObstacle(const Position & pos) const {
+    if (pos.getRow() < 0 || pos.getRow() >= num_rows || pos.getCol() < 0 || pos.getCol() >= num_cols) {
+        return false;
+    }
+    ElementType type = grid[pos.getRow()][pos.getCol()]->getType();
+    return (type == GROUND_OBSTACLE);
+}
 
 // 3.3
 Position::Position(int r, int c): r_(r), c_(c) {}
@@ -105,6 +117,10 @@ bool operator!=(const Position& lhs, const Position& rhs) {
     return lhs.getRow() != rhs.getRow() || lhs.getCol() != rhs.getCol();
 }
 
+int Position::manhattanDistance(const Position &other) const {
+    return abs(r_ - other.getRow()) + abs(c_ - other.getCol());
+}
+
 // 3.4
 MovingObject::MovingObject(int index, const Position & pos, Map *map, const string & name)
     : index(index), pos(pos), map(map), name(name) {}
@@ -121,6 +137,16 @@ string MovingObject::str() const {
     return name + " at " + pos.str();
 }
 
+string oppositeDirection(char direction) {
+    switch (direction) {
+        case 'U': return "D";
+        case 'D': return "U";
+        case 'L': return "R";
+        case 'R': return "L";
+        default: return "";
+    }
+}
+
 // 3.5
 Warrior::Warrior(int index, const Position & pos, Map * map,
                 const string & name, int hp, int damage)
@@ -132,8 +158,8 @@ Warrior::Warrior(int index, const Position & pos, Map * map,
         this->damage = min(this->damage, 900);
     }
 Warrior::~Warrior() {}
-int Warrior::getHp() const { return hp; }
-int Warrior::getDamage() const { return damage; }
+int Warrior::getHp() { return hp; }
+int Warrior::getDamage() { return damage; }
 void Warrior::setHp(int new_hp) { 
     if (new_hp < 0) hp = 0;
     else if (new_hp > 500) hp = 500;
@@ -147,8 +173,11 @@ void Warrior::setDamage(int new_damage) {
 
 
 BaseBag* Warrior::getBag() const {
-    // TODO: Implement this method
     return nullptr;
+}
+
+bool Warrior::isDragonLord() const {
+    return false;
 }
 
 // 3.6 
@@ -162,73 +191,6 @@ FlyTeam::FlyTeam(int index, const string & moving_rule,
         damage = min(damage, 900);
     }
 string FlyTeam::getMovingRule() const { return moving_rule; }
-
-char getReverseDirection(char direction) {
-    switch(direction) {
-        case 'U': return 'D';
-        case 'D': return 'U';
-        case 'L': return 'R';
-        case 'R': return 'L';
-        default: return direction;
-    }
-}
-
-Position getPositionInDirection(const Position& current_pos, char direction) {
-    Position next_pos = current_pos;
-    if (direction == 'U') {
-        next_pos.setRow(current_pos.getRow() - 1);
-    } else if (direction == 'D') {
-        next_pos.setRow(current_pos.getRow() + 1);
-    } else if (direction == 'L') {
-        next_pos.setCol(current_pos.getCol() - 1);
-    } else if (direction == 'R') {
-        next_pos.setCol(current_pos.getCol() + 1);
-    }
-    return next_pos;
-}
-
-bool checkLoopPattern(int obj_index, const Position& current_pos) {
-    static Position position_history[10][6]; 
-    static int history_size[10] = {0};       
-    
-    if (obj_index < 0 || obj_index >= 10) return false;
-    
-    int& size = history_size[obj_index];
-    
-    if (size >= 6) {
-        for (int i = 0; i < 5; i++) {
-            position_history[obj_index][i] = position_history[obj_index][i + 1];
-        }
-        size = 5;
-    }
-    
-    position_history[obj_index][size] = current_pos;
-    size++;
-
-    if (size >= 6) {
-        bool isLoop = true;
-        for (int i = 0; i < 3; i++) {
-            Position& pos1 = position_history[obj_index][i*2];
-            Position& pos2 = position_history[obj_index][i*2+1];
-            Position& first = position_history[obj_index][0];
-            Position& second = position_history[obj_index][1];
-            
-            if (!(pos1.isEqual(first.getRow(), first.getCol()) &&
-                  pos2.isEqual(second.getRow(), second.getCol()))) {
-                isLoop = false;
-                break;
-            }
-        }
-        
-        if (isLoop) {
-            size = 0;
-            return true;
-        }
-    }
-    
-    return false;
-}
-
 Position FlyTeam::getNextPosition() {
     if (moving_rule.empty()) return Position::npos;
     
@@ -246,29 +208,44 @@ Position FlyTeam::getNextPosition() {
     } else return Position::npos; 
     return next_pos;
 }
-void FlyTeam::move() {
-    if (checkLoopPattern(index, pos)) {
-        setHp(1); 
-        return;
-    }
+
+Position FlyTeam::getRereversePosition() const {
+    if (moving_rule.empty()) return Position::npos;
+    char direction = moving_rule[moving_index];
+    Position next_pos = pos;
+    if (direction == 'U') {
+        next_pos.setRow(pos.getRow() + 1);
+    } else if (direction == 'D') {
+        next_pos.setRow(pos.getRow() - 1);
+    } else if (direction == 'L') {
+        next_pos.setCol(pos.getCol() + 1);
+    } else if (direction == 'R') {
+        next_pos.setCol(pos.getCol() - 1);
+    } else return Position::npos;
+    return next_pos;
+}
     
+void FlyTeam::move() {
+    if (hp <= 1) pos = Position::npos; // If hp is 1 or less, do not move
     for (int i = 0; i < moving_rule.size(); ++i) {
         moving_index %= moving_rule.size();
-        char current_direction = moving_rule[moving_index];
-        Position next_pos = getPositionInDirection(pos, current_direction);
-        
-        if (map->isValid(next_pos, this)) {
+        Position next_pos = getNextPosition();
+        if (map->isValid(next_pos, this) && (map->isPath(next_pos) || map->isGroundObstacle(next_pos))) {
             pos = next_pos;
-            moving_index = (moving_index + 1) % moving_rule.size();
         } else {
-            char reverse_direction = getReverseDirection(current_direction);
-            Position reverse_pos = getPositionInDirection(pos, reverse_direction);
-            
-            if (map->isValid(reverse_pos, this)) {
+            Position reverse_pos = getRereversePosition();
+            // MSG: GroundTeam at (0,0) got blocked when moving U to (-1,0)
+            cout<<"MSG: "<<getName()<<" at"<<getCurrentPosition().str()
+                <<" got blocked when moving "<<moving_rule[moving_index]
+                <<" to "<<next_pos.str()<<endl;
+            if (map->isValid(reverse_pos, this) && (map->isPath(reverse_pos) || map->isGroundObstacle(reverse_pos))) {
+                // MSG: GroundTeam moved to the opposite direction D to (1,0)
+                cout<<"MSG: "<<getName()<<" moved to the opposite direction "
+                    <<oppositeDirection(moving_rule[moving_index])<<" to "<<reverse_pos.str()<<endl;
                 pos = reverse_pos;
             }
-            moving_index = (moving_index + 1) % moving_rule.size();
         }
+        moving_index = (moving_index + 1) % moving_rule.size();
     }
 }
 string FlyTeam::str() const {
@@ -283,6 +260,7 @@ bool FlyTeam::attack(DragonLord *dragonlord) {
     Position flyteam_pos = getCurrentPosition();
     
     if (flyteam_pos.isEqual(dragonlord_pos.getRow(), dragonlord_pos.getCol())) {
+
         return true;
     }
     return false;
@@ -314,29 +292,45 @@ Position GroundTeam::getNextPosition() {
     } else return Position::npos; 
     return next_pos;
 }
+
+Position GroundTeam::getRereversePosition() const {
+    if (moving_rule.empty()) return Position::npos;
+    char direction = moving_rule[moving_index];
+    Position next_pos = pos;
+    if (direction == 'U') {
+        next_pos.setRow(pos.getRow() + 1);
+    } else if (direction == 'D') {
+        next_pos.setRow(pos.getRow() - 1);
+    } else if (direction == 'L') {
+        next_pos.setCol(pos.getCol() + 1);
+    } else if (direction == 'R') {
+        next_pos.setCol(pos.getCol() - 1);
+    } else return Position::npos;
+    return next_pos;
+}
+
 void GroundTeam::move() {
-    if (checkLoopPattern(index, pos)) {
-        setHp(1);  
-        return;
-    }
-    
+    if (hp <= 1) pos = Position::npos; // If hp is 1 or less, do not move
     for (int i = 0; i < moving_rule.size(); ++i) {
         moving_index %= moving_rule.size();
-        char current_direction = moving_rule[moving_index];
-        Position next_pos = getPositionInDirection(pos, current_direction);
-        
-        if (map->isValid(next_pos, this)) {
+        Position next_pos = getNextPosition();
+        if (map->isValid(next_pos, this) && 
+            (map->isPath(next_pos) || 
+            (map->isGroundObstacle(next_pos) && (next_pos.getRow() * 257 + next_pos.getCol() * 139 + 89) % 900 + 1 < damage))) {
             pos = next_pos;
-            moving_index = (moving_index + 1) % moving_rule.size();
         } else {
-            char reverse_direction = getReverseDirection(current_direction);
-            Position reverse_pos = getPositionInDirection(pos, reverse_direction);
-            
-            if (map->isValid(reverse_pos, this)) {
+            Position reverse_pos = getRereversePosition();
+            cout<<"MSG: "<<getName()<<" at"<<getCurrentPosition().str()
+                <<" got blocked when moving "<<moving_rule[moving_index]
+                <<" to "<<next_pos.str()<<endl;
+            if (map->isValid(reverse_pos, this) && (map->isPath(reverse_pos) || (map->isGroundObstacle(reverse_pos) && (reverse_pos.getRow() * 257 + reverse_pos.getCol() * 139 + 89) % 900 + 1 < damage))) {
+                cout<<"MSG: "<<getName()<<" moved to the opposite direction "
+                    <<oppositeDirection(moving_rule[moving_index])<<" to "<<reverse_pos.str()<<endl;
                 pos = reverse_pos;
             }
-            moving_index = (moving_index + 1) % moving_rule.size();
         }
+        moving_index = (moving_index + 1) % moving_rule.size();
+    
     }
 }
 string GroundTeam::str() const {
@@ -352,57 +346,23 @@ bool GroundTeam::trap(DragonLord *dragonlord) {
     Position groundteam_pos = getCurrentPosition();
 
     if (groundteam_pos.isEqual(dragonlord_pos.getRow(), dragonlord_pos.getCol())) {
-        int dragonlord_id = dragonlord_pos.getRow() * 1000 + dragonlord_pos.getCol();
-        setDragonLordTrapStatus(dragonlord_id, getTrapTurns());
-        setTrapTurns(3);
-        
+
         return true;
     }
     return false;
 }
 
-void setDragonLordTrapStatus(int dragonlord_id, int trap_turns) {
-    static int trapped_turns[1000] = {0}; 
-    int hash_index = dragonlord_id % 1000;
-    trapped_turns[hash_index] = trap_turns;
-}
-
-bool isDragonLordTrapped(int dragonlord_id) {
-    static int trapped_turns[1000] = {0};
-    int hash_index = dragonlord_id % 1000;
-    return trapped_turns[hash_index] > 0;
-}
-
-void decreaseDragonLordTrapTurns(int dragonlord_id) {
-    static int trapped_turns[1000] = {0};
-    int hash_index = dragonlord_id % 1000;
-    if (trapped_turns[hash_index] > 0) {
-        trapped_turns[hash_index]--;
-    }
-}
-
 int GroundTeam::getTrapTurns() const {
-    static int default_trap_turns = 3;
-    static int current_trap_turns[10] = {3,3,3,3,3,3,3,3,3,3}; 
-    
-    if (index >= 0 && index < 10) {
-        return current_trap_turns[index];
-    }
-    return default_trap_turns;
+    return trap_turns;
 }
-
 void GroundTeam::setTrapTurns(int turns) {
-    static int current_trap_turns[10] = {3,3,3,3,3,3,3,3,3,3};
-    
-    if (index >= 0 && index < 10) {
-        current_trap_turns[index] = max(turns, 0);
-    }
+    trap_turns = max(turns, 0);
 }
 
 // 3.8
 DragonLord::DragonLord(int index, const Position & pos, Map * map,
                        FlyTeam *flyteam1, FlyTeam *flyteam2, GroundTeam *ground_team)
-    : MovingObject(index, pos, map, "DragonLord"), flyteam1(flyteam1), flyteam2(flyteam2) {}
+    : MovingObject(index, pos, map, "DragonLord"), flyteam1(flyteam1), flyteam2(flyteam2), hp(1000), damage(100) {}
 
 Position DragonLord::getPosition() const {
     int x = abs(flyteam1->getCurrentPosition().getRow() - flyteam2->getCurrentPosition().getRow());
@@ -410,14 +370,19 @@ Position DragonLord::getPosition() const {
     return Position(x, y);
 }
 
-int DragonLord::manhattanDistance() const {
-    Position pos1 = flyteam1->getCurrentPosition();
-    Position pos2 = flyteam2->getCurrentPosition();
+int DragonLord::manhattanDistance(const Position pos1, const Position pos2) const {
     return abs(pos1.getRow() - pos2.getRow()) + abs(pos1.getCol() - pos2.getCol());
 }
 
 Position DragonLord::getNextPosition() {
-    if (manhattanDistance() > 5) {
+    if (isTrapped) {
+        trap_turns--;
+        if (trap_turns == 0) setIsTrapped(false);
+        Position cur_pos = getPosition();
+        Position next_pos(cur_pos.getCol(), cur_pos.getRow());
+        return next_pos;
+    }
+    if (manhattanDistance(getPosition(), flyteam1->getCurrentPosition()) > 5 && manhattanDistance(getPosition(), flyteam2->getCurrentPosition()) > 5) {
         Position next_pos = getPosition();
         return next_pos;
     } else {
@@ -426,20 +391,8 @@ Position DragonLord::getNextPosition() {
         return next_pos;
     }
 }
-
-// cai nay sai nha, de cho do trong
 void DragonLord::move() {
-    // Check if DragonLord is trapped
-    Position current_pos = getPosition();
-    int dragonlord_id = current_pos.getRow() * 1000 + current_pos.getCol();
-    
-    if (isDragonLordTrapped(dragonlord_id)) {
-        // DragonLord is trapped, cannot move but decrease trap turns
-        decreaseDragonLordTrapTurns(dragonlord_id);
-        return;
-    }
-    
-    // Normal movement logic
+    if (hp <= 1) pos = Position::npos; // If hp is 1 or less, do not move
     Position next_pos = getNextPosition();
     if (map->isValid(next_pos, this)) {
         pos = next_pos;
@@ -448,6 +401,24 @@ void DragonLord::move() {
 
 string DragonLord::str() const {
     return "DragonLord[index=" + to_string(index) + ";pos=" + pos.str() + "]";
+}
+
+int DragonLord::getHp() {
+    return hp;
+}
+
+int DragonLord::getDamage() {
+    return damage;
+}
+
+void DragonLord::setHp(int new_hp) {
+    if (new_hp < 0) hp = 0;
+    else hp = new_hp;
+}
+
+void DragonLord::setDamage(int new_damage) {
+    if (new_damage < 0) damage = 0;
+    else damage = new_damage;
 }
 
 // 3.9
@@ -692,26 +663,30 @@ string Configuration::str() const {
     return result;
 }
 //3.11
-
-// 3.12
 SmartDragon::SmartDragon(int index, const Position & init_pos, Map * map, 
                          DragonType type, MovingObject *obj, int damage)
     : MovingObject(index, init_pos, map, "SmartDragon"), smartdragon_type(type), 
-      damage(damage), item(nullptr), target(obj), target_pos(init_pos) {
+      hp(300), damage(damage), item(nullptr), target(obj), target_pos(init_pos) {
         this->damage = max(this->damage, 0);
         this->damage = min(this->damage, 900);
 }
 Position SmartDragon::getNextPosition() {
     if (smartdragon_type == SD1 || smartdragon_type == SD2) {
-        int dx[] = {0, 1, 0, -1};
-        int dy[] = {1, 0, -1, 0};
+        int dx[] = {-1, 0, 1, 0}; // UP, RIGHT, DOWN, LEFT
+        int dy[] = {0, 1, 0, -1};
+        int min_dist = abs(pos.getRow() - target->getCurrentPosition().getRow()) + abs(pos.getCol() - target->getCurrentPosition().getCol());
+        Position best_pos = pos;
         for (int i = 0; i < 4; ++i) {
             Position next_pos(pos.getRow() + dx[i], pos.getCol() + dy[i]);
             if (map->isValid(next_pos, target)) {
-                return next_pos;
+            int dist = abs(next_pos.getRow() - target->getCurrentPosition().getRow()) + abs(next_pos.getCol() - target->getCurrentPosition().getCol());
+            if (dist < min_dist) {
+                min_dist = dist;
+                best_pos = next_pos;
+            }
             }
         }
-        return pos; 
+        return best_pos;
     } else if (smartdragon_type == SD3) {
         return target->getCurrentPosition(); 
     }
@@ -733,6 +708,26 @@ string SmartDragon::str() const {
     return results;
 }
 
+int SmartDragon::getHp() {
+    return hp;
+}
+
+int SmartDragon::getDamage() {
+    return damage;
+}
+
+void SmartDragon::setHp(int new_hp) {
+    if (new_hp < 0) hp = 0;
+    else hp = new_hp;
+}
+
+void SmartDragon::setDamage(int new_damage) {
+    if (new_damage < 0) damage = 0;
+    else if (new_damage > 900) damage = 900;
+    else damage = new_damage;
+}
+
+// 3.13
 // BaseItem implementation
 BaseItem::BaseItem(ItemType type, int value) : type(type), value(value) {}
 BaseItem::~BaseItem() {}
@@ -756,7 +751,6 @@ bool BaseBag::insert(BaseItem* item) {
     for (int i = 0; i < capacity; ++i) {
         if (items[i] == nullptr) {
             items[i] = item;
-            count++; 
             return true;
         }
     }
@@ -764,27 +758,21 @@ bool BaseBag::insert(BaseItem* item) {
 }
 
 BaseItem* BaseBag::get() {
-    for (int i = 0; i < capacity; ++i) {
+    Warrior* owner = (Warrior*)(this); 
+    int index_first_item = -1;
+    // item dau danh sach
+    for (int i = 0; i < capacity; ++i){
         if (items[i] != nullptr) {
+            index_first_item = i;
+            break;
+        }
+    }
+
+    for (int i = 0; i < capacity; ++i) {
+        if (items[i] != nullptr && items[i]->canUse(owner)) {
             BaseItem* item = items[i];
-            if (i != 0) {
-                int first_pos = -1;
-                for (int j = 0; j < capacity; ++j) {
-                    if (items[j] != nullptr) {
-                        first_pos = j;
-                        break;
-                    }
-                }
-                if (first_pos != -1 && first_pos != i) {
-                    swap(items[i], items[first_pos]);
-                    items[first_pos] = nullptr;
-                } else {
-                    items[i] = nullptr; 
-                }
-            } else {
-                items[i] = nullptr; 
-            }
-            count--;
+            swap(items[i],items[index_first_item]);
+            items[index_first_item] = nullptr; 
             return item;
         }
     }
@@ -792,27 +780,20 @@ BaseItem* BaseBag::get() {
 }
 
 BaseItem* BaseBag::get(ItemType itemType) {
+    Warrior* owner = (Warrior*)(this); 
+    int index_first_item = -1;
+    for (int i = 0; i < capacity; ++i){
+        if (items[i] != nullptr) {
+            index_first_item = i;
+            break;
+        }
+    }
+
     for (int i = 0; i < capacity; ++i) {
-        if (items[i] != nullptr && items[i]->getType() == itemType) {
+        if (items[i] != nullptr && items[i]->getType() == itemType && items[i]->canUse(owner)) {
             BaseItem* item = items[i];
-            if (i != 0) {
-                int first_pos = -1;
-                for (int j = 0; j < capacity; ++j) {
-                    if (items[j] != nullptr) {
-                        first_pos = j;
-                        break;
-                    }
-                }
-                if (first_pos != -1 && first_pos != i) {
-                    swap(items[i], items[first_pos]);
-                    items[first_pos] = nullptr;
-                } else {
-                    items[i] = nullptr;
-                }
-            } else {
-                items[i] = nullptr; 
-            }
-            count--;
+            swap(items[i],items[index_first_item]);
+            items[index_first_item] = nullptr; 
             return item;
         }
     }
@@ -831,71 +812,28 @@ string BaseBag::str() const {
 }
 
 
-//TeamBag implementation
-TeamBag::TeamBag(Warrior* owner) : BaseBag(10), owner(owner) {}
-
+//TeamBag
+TeamBag::TeamBag(Warrior* owner) : BaseBag(10), owner(owner) {
+    arrBaseBag = new BaseBag*[capacity];
+    count = 0;
+}
 TeamBag::~TeamBag() {
-
-}
-
-bool TeamBag::insert(BaseItem* item) {
-    return BaseBag::insert(item); 
-}
-
-BaseItem* TeamBag::get() {
-    for (int i = 0; i < capacity; ++i) {
-        if (items[i] != nullptr && items[i]->canUse(owner)) {
-            BaseItem* item = items[i];
-            if (i != 0) {
-                int first_pos = -1;
-                for (int j = 0; j < capacity; ++j) {
-                    if (items[j] != nullptr) {
-                        first_pos = j;
-                        break;
-                    }
-                }
-                if (first_pos != -1 && first_pos != i) {
-                    swap(items[i], items[first_pos]);
-                    items[first_pos] = nullptr; 
-                } else items[i] = nullptr; 
-            } else items[i] = nullptr;
-            count--; 
-            return item;
-        }
+    for (int i = 0; i < count; ++i) {
+        delete arrBaseBag[i];
     }
-    return nullptr; 
+    delete[] arrBaseBag;
 }
-
-BaseItem* TeamBag::get(ItemType itemType) {
-    for (int i = 0; i < capacity; ++i) {
-        if (items[i] != nullptr && items[i]->getType() == itemType && items[i]->canUse(owner)) {
-            BaseItem* item = items[i];
-            if (i != 0) {
-                int first_pos = -1;
-                for (int j = 0; j < capacity; ++j) {
-                    if (items[j] != nullptr) {
-                        first_pos = j;
-                        break;
-                    }
-                }
-                if (first_pos != -1 && first_pos != i) {
-                    swap(items[i], items[first_pos]);
-                    items[first_pos] = nullptr; 
-                } else {
-                    items[i] = nullptr; 
-                }
-            } else {
-                items[i] = nullptr; 
-            }
-            count--; 
-            return item;
-        }
+bool TeamBag::insert(BaseBag* item) {
+    if (item == nullptr || count >= capacity) {
+        return false;
     }
-    return nullptr;
+    arrBaseBag[count++] = item;
+    return true;
 }
 
-string TeamBag::str() const {
-    return BaseBag::str();
+BaseBag* TeamBag::get(int index) {
+    if (index < 0 || index >= count) return nullptr;
+    return arrBaseBag[index];
 }
 
 // DragonWarriorsProgram implementation
@@ -935,6 +873,25 @@ DragonWarriorsProgram::DragonWarriorsProgram(const string &config_file_path) {
     // Create DragonLord
     dragonlord = new DragonLord(4, config->dragonlord_init_pos, map,
                                 flyteam1, flyteam2, groundteam);
+    arr_mv_objs = new ArrayMovingObject(config->max_num_moving_objects);
+    arr_mv_objs->add(flyteam1);
+    arr_mv_objs->add(flyteam2);
+    arr_mv_objs->add(groundteam);
+    arr_mv_objs->add(dragonlord);
+
+    movement_history = new MovementHistory(config->max_num_moving_objects);
+    Path *path = new Path();
+    path->add(flyteam1->getCurrentPosition());
+    movement_history->addPath(path);
+    path = new Path();
+    path->add(flyteam2->getCurrentPosition());
+    movement_history->addPath(path);
+    path = new Path();
+    path->add(groundteam->getCurrentPosition());
+    movement_history->addPath(path);
+    path = new Path();
+    path->add(dragonlord->getCurrentPosition());
+    movement_history->addPath(path);
 
 }
 
@@ -949,7 +906,6 @@ DragonWarriorsProgram::~DragonWarriorsProgram() {
 }
 
 bool DragonWarriorsProgram::isStop() const {
-    if (!flyteam1 || !flyteam2 || !groundteam || !dragonlord) return true;
     if (flyteam1->getHp() <= 1 && flyteam2->getHp() <= 1 && groundteam->getHp() <= 1) return true;
     return false;
 }

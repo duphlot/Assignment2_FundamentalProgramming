@@ -1,0 +1,5 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     '/Users/ptdung/Coding/Github/Assignment2_FundamentalProgramming/main'
+relocations:     []
+...

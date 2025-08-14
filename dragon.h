@@ -69,6 +69,8 @@ public:
     void    setCol(int c);
     string  str()     const;
     bool    isEqual(int in_r, int in_c) const;
+    int manhattanDistance(const Position &other) const;
+
 };
 
 // ——— Map ———
@@ -87,6 +89,9 @@ public:
     int  getNumRows()     const;
     int  getNumCols()     const;
     static const Position npos;
+    bool isPath(const Position & pos) const;
+    bool isObstacle(const Position & pos) const;
+    bool isGroundObstacle(const Position & pos) const;
 };
 
 // ——— MovingObject ———
@@ -104,6 +109,14 @@ public:
     Position          getCurrentPosition() const;
     virtual void      move()          = 0;
     virtual string    str()    const = 0;
+    virtual int getHp() = 0;
+    virtual int getDamage() = 0;
+    virtual void setHp(int new_hp) = 0;
+    virtual void setDamage(int new_damage) = 0;
+    virtual bool isDragonLord() const = 0;
+    string       getName() const {
+        return name;
+    }
 };
 
 // ——— Warrior ———
@@ -116,11 +129,12 @@ public:
     Warrior(int index, const Position & pos, Map * map,
             const string & name, int hp, int damage);
     virtual ~Warrior();
-    int getHp() const;
-    int getDamage() const;
-    void setHp(int new_hp);
-    void setDamage(int new_damage);
+    int getHp() override;
+    int getDamage() override;
+    void setHp(int new_hp) override;
+    void setDamage(int new_damage) override;
     BaseBag* getBag() const;
+    bool isDragonLord() const override;
 };
 
 // ——— FlyTeam & GroundTeam ———
@@ -134,9 +148,11 @@ public:
     // TODO
     string getMovingRule() const;
     Position getNextPosition() override;
+    Position getRereversePosition() const;
     void move() override;
     string str() const override;
     bool attack(DragonLord *dragonlord);
+    bool isDragonLord() const override { return false; }
 
 };
 
@@ -144,17 +160,20 @@ class GroundTeam : public Warrior {
 private:
     string moving_rule;
     int moving_index; 
+    int trap_turns;
 
 public:
     GroundTeam(int index, const string & moving_rule,
         const Position & pos, Map * map, int hp, int damage);
     // TODO
     Position getNextPosition() override;
+    Position getRereversePosition() const;
     void move() override;
     string str() const override;
     bool trap(DragonLord *dragonlord);
     int getTrapTurns() const;
     void setTrapTurns(int turns);
+    bool isDragonLord() const override { return false; }
 };
 
 // ——— DragonLord ———
@@ -162,6 +181,10 @@ class DragonLord : public MovingObject {
 private:
     FlyTeam *flyteam1;
     FlyTeam *flyteam2;
+    int hp;
+    int damage;
+    bool isTrapped;
+    int trap_turns = 0;
 
 public:
     DragonLord(int index, const Position & pos, Map * map,
@@ -170,7 +193,15 @@ public:
     void move() override;
     string str() const override;
     Position getPosition() const;
-    int manhattanDistance() const;
+    int manhattanDistance(const Position pos1, const Position pos2) const;
+    int getHp() override;
+    int getDamage() override;
+    void setHp(int new_hp) override;
+    void setDamage(int new_damage) override;
+    void setTrapTurns(int turns) { trap_turns = turns; }
+    int getTrapTurns() const { return trap_turns; }
+    void setIsTrapped(bool trapped) { isTrapped = trapped; }
+    bool isDragonLord() const override { return true; }
 };
 
 // ...................
@@ -178,6 +209,7 @@ public:
 class SmartDragon : public MovingObject {
 private:
     DragonType smartdragon_type;
+    int hp;
     int damage;
     BaseItem* item;
     MovingObject *target;
@@ -188,6 +220,11 @@ public:
     Position getNextPosition() override;
     void move() override;
     string str() const override;
+    int getHp() override;
+    int getDamage() override;
+    void setHp(int new_hp) override;
+    void setDamage(int new_damage) override;
+    bool isDragonLord() const override { return false; }
 };
 
 // ——— BaseItem ———
@@ -213,7 +250,7 @@ class DragonScale : public BaseItem {
 public:
     DragonScale() : BaseItem(DRAGONSCALE, 25) {}
     bool canUse(Warrior* w) override {
-        return w->getHp() <= 400;
+        return w->getDamage() <= 400;
     }
     void use(Warrior* w) override {
         if (canUse(w)) {
@@ -233,7 +270,7 @@ public:
     void use(Warrior* w) override {
         if (canUse(w)) {
             int current_hp = w->getHp();
-            w->setHp(current_hp + current_hp * 20 / 100);
+            w->setHp(round(current_hp + current_hp * 20 / 100.0));
         }
     }
 };
@@ -277,14 +314,14 @@ public:
 // ——— TeamBag ———
 class TeamBag : public BaseBag {
 private:
+    BaseBag **arrBaseBag;
     Warrior *owner;
+    int count;
 public:
     TeamBag(Warrior *owner);
     ~TeamBag();
-    bool insert(BaseItem* item) override;
-    BaseItem* get() override;
-    BaseItem* get(ItemType itemType) override;
-    string str() const override;
+    bool insert(BaseBag* item);
+    BaseBag* get(int index);
 };
 
 
@@ -349,6 +386,65 @@ public:
 };
 
 // ——— DragonWarriorsProgram ———
+class Path {
+private:
+    Position history[4];
+    int idx;
+    int filled;
+    int totalMoves;
+public:
+    Path() : idx(0), filled(0), totalMoves(0) {}
+    void add(const Position& pos) {
+        idx = idx % 3;
+        history[idx] = pos;
+        idx++;
+        if (filled < 3) filled++;
+        totalMoves++;
+    }
+
+    int getTotalMoves() const {
+        return totalMoves;
+    }
+
+    bool checkLoop() const {
+        if (filled < 3) return false;
+        // If positions alternate: A B A or B A B
+        return (history[0].isEqual(history[2].getRow(), history[2].getCol()) &&
+                !history[0].isEqual(history[1].getRow(), history[1].getCol()));
+    }
+};
+
+class MovementHistory {
+private:
+    Path **history;
+    int count;
+    int capacity;
+
+public:
+    MovementHistory(int capacity){
+        this->capacity = capacity;
+        this->count = 0;
+        history = new Path*[capacity];
+    }
+    ~MovementHistory(){
+        for (int i = 0; i < count; ++i) {
+            delete history[i];
+        }
+        delete[] history;
+    }
+    void addPath(const Path *path){
+        if (count < capacity) {
+            history[count++] = new Path(*path);
+        }
+    }
+    Path* getPath(int index) const {
+        if (index < 0 || index >= count) {
+            return nullptr;
+        }
+        return history[index];
+    }
+};
+
 class DragonWarriorsProgram {
 private:
     Configuration      *config;
@@ -360,6 +456,9 @@ public:
     FlyTeam            *flyteam2;
     GroundTeam         *groundteam;
     DragonLord         *dragonlord;
+    MovementHistory    *movement_history;
+    int countSD1 = 0, countSD2 = 0, countSD3 = 0;
+    int num_smart_dragons;
 
     DragonWarriorsProgram(const string &config_file_path);
 
@@ -389,16 +488,75 @@ public:
     void run(bool verbose) {
         // TODO
         for (int istep = 0; istep < config->num_steps; ++istep) {
+            bool createSmartDragon = false;
+            Position smartDragon;
+            DragonType smartDragonType;
+            MovingObject *smartDragonTarget;
+
             for (int i = 0; i < arr_mv_objs->size(); ++i) {
-                arr_mv_objs->get(i)->move();
-                if (isStop()) {
-                    printStep(istep);
-                    break;
+                // if (arr_mv_objs->get(i)->getHp() <= 1) continue;
+                
+                if (arr_mv_objs->get(i)->isDragonLord() && movement_history->getPath(i)->getTotalMoves() % 5 == 0) {
+                    Position prevPos = arr_mv_objs->get(i)->getCurrentPosition();
+                    DragonType newType = SD1;
+                    MovingObject *target = flyteam1;
+                    if (num_smart_dragons == 0) {
+                        newType = SD1;
+                    } else {
+                        // Compute distances
+                        int dist1 = prevPos.manhattanDistance(flyteam1->getCurrentPosition());
+                        int dist2 = prevPos.manhattanDistance(flyteam2->getCurrentPosition());
+                        int dist3 = prevPos.manhattanDistance(groundteam->getCurrentPosition());
+                        if (dist1 == dist2 && dist2 == dist3) newType = countSD1 > countSD2 ? (countSD2 > countSD3 ? SD3 : SD2) : (countSD1 > countSD3 ? SD2 : SD1);
+                        else newType = dist1 > dist2 ? (dist2 > dist3 ? SD3 : SD2) : (dist1 > dist3 ? SD2 : SD1);
+                    }
+                    if (newType == SD1) {
+                        countSD1++;
+                        target = flyteam1;
+                    } else if (newType == SD2) {
+                        countSD2++;
+                        target = flyteam2;
+                    } else if (newType == SD3) {
+                        countSD3++;
+                        target = groundteam;
+                    }
+                    num_smart_dragons++;
+                    createSmartDragon = true;
+                    smartDragon = prevPos;
+                    smartDragonType = newType;
+                    smartDragonTarget = target;
                 }
-                if (verbose) {
-                    printStep(istep);
+                
+                cout<< "MSG: " << arr_mv_objs->get(i)->getName() << " moved\n";
+                
+                arr_mv_objs->get(i)->move();
+                // saving step
+                movement_history->getPath(i)->add(arr_mv_objs->get(i)->getCurrentPosition());
+
+                if (arr_mv_objs->get(i)->getHp() > 1 && movement_history->getPath(i)->checkLoop()) {
+                    cout<<"MSG: "<<arr_mv_objs->get(i)->getName()<<" eliminated due to being stuck for 3 similar patterns!"<<endl;
+                    arr_mv_objs->get(i)->setHp(1);
                 }
             }
+            if (createSmartDragon) {
+                int damage = (smartDragon.getRow() * 257 + smartDragon.getCol() * 139 + 89) % 900 + 1;
+                SmartDragon *objectSmartDragon = new SmartDragon(
+                        arr_mv_objs->size()+1, smartDragon, map,
+                        smartDragonType, smartDragonTarget, damage);
+                arr_mv_objs->add(objectSmartDragon);
+                string stringType;
+                if (smartDragonType == SD1) stringType = "SD1";
+                else if (smartDragonType == SD2) stringType = "SD2";
+                else if (smartDragonType == SD3) stringType = "SD3";
+                cout<< "MSG : "<<stringType <<" created at "<<smartDragon.str()<<endl;
+                Path *path = new Path();
+                path->add(smartDragonType);
+                movement_history->addPath(path);
+            }
+            if (verbose) {
+                printStep(istep);
+            }
+            cout<<"-------------------------------------------------------------------------------------------------------------------\n";
         }
         printResult();
     }
