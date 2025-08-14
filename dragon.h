@@ -392,14 +392,28 @@ public:
 // ——— DragonWarriorsProgram ———
 class Path {
 private:
-    vector<Position> positions;
+    Position* positions;
+    int capacity;
     int idx;
     int filled;
     int totalMoves;
 public:
-    Path() : idx(0), filled(0), totalMoves(1) {}
+    Path(int cap = 100) : capacity(cap), idx(0), filled(0), totalMoves(1) {
+        positions = new Position[capacity];
+    }
+    Path(const Path& other) : capacity(other.capacity), idx(other.idx), filled(other.filled), totalMoves(other.totalMoves) {
+        positions = new Position[capacity];
+        for (int i = 0; i < filled; ++i) {
+            positions[i] = other.positions[i];
+        }
+    }
+    ~Path() {
+        delete[] positions;
+    }
     void add(const Position& pos) {
-        positions.push_back(pos);
+        if (filled < capacity) {
+            positions[filled++] = pos;
+        }
     }
 
     int getTotalMoves() const {
@@ -407,11 +421,11 @@ public:
     }
 
     bool checkLoop() const {
-        if (positions.size() < 4) return false;
-        const Position& a = positions[positions.size() - 4];
-        const Position& b = positions[positions.size() - 3];
-        const Position& c = positions[positions.size() - 2];
-        const Position& d = positions[positions.size() - 1];
+        if (filled < 4) return false;
+        const Position& a = positions[filled - 4];
+        const Position& b = positions[filled - 3];
+        const Position& c = positions[filled - 2];
+        const Position& d = positions[filled - 1];
         if (a == c && b == d) {
             return true;
         }
