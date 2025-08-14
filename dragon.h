@@ -73,6 +73,10 @@ public:
 
 };
 
+// ——— Position operators ———
+bool operator==(const Position& lhs, const Position& rhs);
+bool operator!=(const Position& lhs, const Position& rhs);
+
 // ——— Map ———
 class Map {
 private:
@@ -388,18 +392,14 @@ public:
 // ——— DragonWarriorsProgram ———
 class Path {
 private:
-    Position history[4];
+    vector<Position> positions;
     int idx;
     int filled;
     int totalMoves;
 public:
-    Path() : idx(0), filled(0), totalMoves(0) {}
+    Path() : idx(0), filled(0), totalMoves(1) {}
     void add(const Position& pos) {
-        idx = idx % 3;
-        history[idx] = pos;
-        idx++;
-        if (filled < 3) filled++;
-        totalMoves++;
+        positions.push_back(pos);
     }
 
     int getTotalMoves() const {
@@ -407,10 +407,15 @@ public:
     }
 
     bool checkLoop() const {
-        if (filled < 3) return false;
-        // If positions alternate: A B A or B A B
-        return (history[0].isEqual(history[2].getRow(), history[2].getCol()) &&
-                !history[0].isEqual(history[1].getRow(), history[1].getCol()));
+        if (positions.size() < 4) return false;
+        const Position& a = positions[positions.size() - 4];
+        const Position& b = positions[positions.size() - 3];
+        const Position& c = positions[positions.size() - 2];
+        const Position& d = positions[positions.size() - 1];
+        if (a == c && b == d) {
+            return true;
+        }
+        return false;
     }
 };
 
@@ -484,7 +489,24 @@ public:
             << "--"
             << flyteam1->str() << "--|--" << flyteam2->str()<< "--|--" << groundteam->str() << "--|--" << dragonlord->str() << endl;
     }
-
+    bool win(int istep) const {
+        if (flyteam1->getCurrentPosition().isEqual(
+                dragonlord->getCurrentPosition().getRow(),
+                dragonlord->getCurrentPosition().getCol())) {
+            cout<<" MSG: FlyTeam1 encounters DragonLord" << endl;
+            printStep(istep);
+            cout << "FlyTeam1 defeated the DragonLord!" << endl;
+            return true;
+        }
+        else if (flyteam2->getCurrentPosition().isEqual(dragonlord->getCurrentPosition().getRow(),
+                dragonlord->getCurrentPosition().getCol())) {
+            cout<<" MSG: FlyTeam2 encounters DragonLord" << endl;
+            printStep(istep);
+            cout << "FlyTeam2 defeated the DragonLord!" << endl;
+            return true;
+        }
+        return false;
+    }
     void run(bool verbose) {
         // TODO
         for (int istep = 0; istep < config->num_steps; ++istep) {
@@ -528,12 +550,12 @@ public:
                 }
                 
                 cout<< "MSG: " << arr_mv_objs->get(i)->getName() << " moved\n";
-                
+
                 arr_mv_objs->get(i)->move();
+                if (win(istep)) return ;
                 // saving step
                 movement_history->getPath(i)->add(arr_mv_objs->get(i)->getCurrentPosition());
-
-                if (arr_mv_objs->get(i)->getHp() > 1 && movement_history->getPath(i)->checkLoop()) {
+                if (!arr_mv_objs->get(i)->isDragonLord() && arr_mv_objs->get(i)->getHp() > 1 && movement_history->getPath(i)->checkLoop()) {
                     cout<<"MSG: "<<arr_mv_objs->get(i)->getName()<<" eliminated due to being stuck for 3 similar patterns!"<<endl;
                     arr_mv_objs->get(i)->setHp(1);
                 }
@@ -560,7 +582,6 @@ public:
         }
         printResult();
     }
-
     ~DragonWarriorsProgram();
 };
 

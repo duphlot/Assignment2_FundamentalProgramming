@@ -117,6 +117,10 @@ bool operator!=(const Position& lhs, const Position& rhs) {
     return lhs.getRow() != rhs.getRow() || lhs.getCol() != rhs.getCol();
 }
 
+bool operator==(const Position& lhs, const Position& rhs) {
+    return lhs.getRow() == rhs.getRow() && lhs.getCol() == rhs.getCol();
+}
+
 int Position::manhattanDistance(const Position &other) const {
     return abs(r_ - other.getRow()) + abs(c_ - other.getCol());
 }

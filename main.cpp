@@ -103,7 +103,6 @@ int main(int argc, const char * argv[]) {
     // myProgram->run(true);
     // delete myProgram;
 
-    TestDragonWar::satc_19();
-
+    TestDragonWar::satc_22();
     return 0;
 }
