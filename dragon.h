@@ -169,6 +169,8 @@ private:
     string moving_rule;
     int moving_index; 
     int trap_turns;
+    bool isTrapped;
+    int trap_duration;
 
 public:
     GroundTeam(int index, const string & moving_rule,
@@ -182,6 +184,9 @@ public:
     int getTrapTurns() const;
     void setTrapTurns(int turns);
     bool isDragonLord() const override { return false; }
+    bool processTrap(); 
+    bool swapPosition();
+    void setIsTrapped(bool trapped) { isTrapped = trapped; }
 };
 
 // ——— DragonLord ———
@@ -191,8 +196,6 @@ private:
     FlyTeam *flyteam2;
     int hp;
     int damage;
-    bool isTrapped;
-    int trap_turns = 0;
 
 public:
     DragonLord(int index, const Position & pos, Map * map,
@@ -206,11 +209,7 @@ public:
     int getDamage() override;
     void setHp(int new_hp) override;
     void setDamage(int new_damage) override;
-    void setTrapTurns(int turns) { trap_turns = turns; }
-    int getTrapTurns() const { return trap_turns; }
-    void setIsTrapped(bool trapped) { isTrapped = trapped; }
     bool isDragonLord() const override { return true; }
-    bool processTrap();
 };
 
 // ...................
@@ -581,7 +580,7 @@ public:
                     smartDragonType = newType;
                     smartDragonTarget = target;
                 }
-                if (arr_mv_objs->get(i)->isDragonLord() && dragonlord->processTrap()) {
+                if (arr_mv_objs->get(i)->isDragonLord() && groundteam->processTrap()) {
                     continue;
                 }
                 cout<< "MSG: " << arr_mv_objs->get(i)->getName() << " moved\n";

@@ -350,6 +350,21 @@ string GroundTeam::str() const {
     return "GroundTeam[index=" + to_string(tempIndex) + ";pos=" + pos.str() + ";moving_rule=" + moving_rule + "]";
 }
 
+bool GroundTeam::swapPosition() {
+    Position next_pos = getCurrentPosition();
+    int row = next_pos.getRow();
+    int col = next_pos.getCol();
+    next_pos.setRow(col);
+    next_pos.setCol(row);
+    if (map->isValid(next_pos, this) && 
+        (map->isPath(next_pos) || 
+        (map->isGroundObstacle(next_pos) && (next_pos.getRow() * 257 + next_pos.getCol() * 139 + 89) % 900 + 1 < damage))) {
+            pos = next_pos;
+            return true;
+    } 
+    return false;
+}
+
 bool GroundTeam::trap(DragonLord *dragonlord) {
     if (dragonlord == nullptr) return false;
 
@@ -358,11 +373,29 @@ bool GroundTeam::trap(DragonLord *dragonlord) {
 
     if (groundteam_pos.isEqual(dragonlord_pos.getRow(), dragonlord_pos.getCol())) {
         cout<<"MSG: GroundTeam trapped DragonLord for "<<trap_turns<<" turns"<<endl;
-        dragonlord->setIsTrapped(true);
-        dragonlord->setTrapTurns(trap_turns);
+        setIsTrapped(true);
+        trap_duration = trap_turns;
         return true;
     }
     return false;
+}
+
+    
+bool GroundTeam::processTrap() {
+    if (isTrapped) {
+        --trap_duration;
+        if (trap_duration == 0) {
+            setIsTrapped(false);
+            trap_turns = 3;
+            if (swapPosition()) {
+                cout<<"MSG: DragonLord escaped the trap! GroundTeam transferred to "<<getCurrentPosition().str()<<endl;
+            } else {
+                cout<<"MSG: DragonLord escaped the trap! Failed to move GroundTeam - eliminated!"<<endl;
+            }
+            return true;
+        }
+    }
+    return isTrapped;
 }
 
 int GroundTeam::getTrapTurns() const {
@@ -385,14 +418,6 @@ Position DragonLord::getPosition() const {
 
 int DragonLord::manhattanDistance(const Position pos1, const Position pos2) const {
     return abs(pos1.getRow() - pos2.getRow()) + abs(pos1.getCol() - pos2.getCol());
-}
-    
-bool DragonLord::processTrap() {
-    if (isTrapped) {
-        trap_turns--;
-        if (trap_turns == 0) setIsTrapped(false);
-    }
-    return isTrapped;
 }
 
 Position DragonLord::getNextPosition() {
