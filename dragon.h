@@ -118,6 +118,7 @@ public:
     virtual void setHp(int new_hp) = 0;
     virtual void setDamage(int new_damage) = 0;
     virtual bool isDragonLord() const = 0;
+    virtual bool isSmartDragon() const = 0;
     virtual void setPosition(const Position &pos) {
         this->pos = pos;
     }
@@ -132,6 +133,7 @@ class Warrior : public MovingObject {
 protected:
     int hp;
     int damage;
+    BaseBag *bag;
 
 public:
     Warrior(int index, const Position & pos, Map * map,
@@ -141,7 +143,9 @@ public:
     int getDamage() override;
     void setHp(int new_hp) override;
     void setDamage(int new_damage) override;
-    BaseBag* getBag() const;
+    BaseBag* getBag() const{
+        return bag;
+    };
     bool isDragonLord() const override;
 };
 
@@ -161,6 +165,7 @@ public:
     string str() const override;
     bool attack(DragonLord *dragonlord);
     bool isDragonLord() const override { return false; }
+    bool isSmartDragon() const override { return false; }
 
 };
 
@@ -187,6 +192,7 @@ public:
     bool processTrap(); 
     bool swapPosition();
     void setIsTrapped(bool trapped) { isTrapped = trapped; }
+    bool isSmartDragon() const override { return false; }
 };
 
 // ——— DragonLord ———
@@ -210,6 +216,7 @@ public:
     void setHp(int new_hp) override;
     void setDamage(int new_damage) override;
     bool isDragonLord() const override { return true; }
+    bool isSmartDragon() const override { return false; }
 };
 
 // ...................
@@ -232,7 +239,9 @@ public:
     int getDamage() override;
     void setHp(int new_hp) override;
     void setDamage(int new_damage) override;
+    DragonType getDragonType() const { return smartdragon_type; }
     bool isDragonLord() const override { return false; }
+    bool isSmartDragon() const override { return true; }
 };
 
 // ——— BaseItem ———
@@ -482,12 +491,23 @@ public:
     GroundTeam         *groundteam;
     DragonLord         *dragonlord;
     MovementHistory    *movement_history;
-    int countSD1 = 0, countSD2 = 0, countSD3 = 0;
+
+    BaseBag           *flyteam1_bag;
+    BaseBag           *flyteam2_bag;
+    BaseBag           *groundteam_bag;
+    BaseBag           *dragonlord_bag;
+    TeamBag           *team_bag;
+    int countSD1, countSD2, countSD3;
     int num_smart_dragons;
 
     DragonWarriorsProgram(const string &config_file_path);
 
     bool   isStop() const;
+
+    // Helper functions for bag management
+    void useAllAvailableItems(Warrior* warrior);
+    void useItemIfPossible(BaseItem* item, Warrior* warrior);
+    BaseItem* createItemFromSmartDragon(DragonType type);
 
     void printResult() const {
         if (flyteam1->getCurrentPosition().isEqual(
@@ -509,8 +529,35 @@ public:
             << "--"
             << flyteam1->str() << "--|--" << flyteam2->str()<< "--|--" << groundteam->str() << "--|--" << dragonlord->str() << endl;
     }
-    bool meeting(int istep, int idx) const {
+    bool meeting(int istep, int idx) {
         MovingObject *currentTeam = arr_mv_objs->get(idx);
+
+        for (int i = 0; i < arr_mv_objs->size(); ++i) {
+            if (i == idx) continue; 
+            MovingObject *otherTeam = arr_mv_objs->get(i);
+            if (otherTeam->isSmartDragon() && currentTeam->getCurrentPosition() == otherTeam->getCurrentPosition()) {
+                SmartDragon *smartDragon = dynamic_cast<SmartDragon*>(otherTeam);
+                if (currentTeam->getDamage() > otherTeam->getDamage()){
+                    Warrior* warrior = dynamic_cast<Warrior*>(currentTeam);
+                    if (warrior) {
+                        BaseItem* droppedItem = createItemFromSmartDragon(smartDragon->getDragonType());
+                        if (droppedItem) {
+                            useItemIfPossible(droppedItem, warrior);
+                        }
+                    }
+                    
+                    if (smartDragon->getDragonType() == SD1) {
+                        countSD1--;
+                    } else if (smartDragon->getDragonType() == SD2) {
+                        countSD2--;
+                    } else if (smartDragon->getDragonType() == SD3) {
+                        countSD3--;
+                    }
+                } else {
+                    currentTeam->setHp(currentTeam->getHp() - 100);
+                }
+            }
+        }
 
         // Check if currentTeam meets DragonLord
         if (currentTeam != nullptr && currentTeam->getCurrentPosition() == dragonlord->getCurrentPosition() && !currentTeam->isDragonLord()) {
@@ -529,11 +576,11 @@ public:
             groundteam->trap(dragonlord);
             }
         } else {
-            MovingObject* teams[4] = {flyteam1, flyteam2, groundteam, dragonlord};
-            for (int j = 0; j < 4; ++j) {
-                if (arr_mv_objs->get(idx) == teams[j]) continue; 
-                if (currentTeam != nullptr && currentTeam->getCurrentPosition() == teams[j]->getCurrentPosition()) {
-                cout << "MSG: " << currentTeam->getName() << " meets " << teams[j]->getName() << endl;
+            for (int i = 0; i < arr_mv_objs->size(); ++i) {
+                if (i == idx) continue; 
+                MovingObject *otherTeam = arr_mv_objs->get(i);
+                if (currentTeam->getCurrentPosition() == otherTeam->getCurrentPosition()) {
+                    cout << "MSG: " << currentTeam->getName() << " meets " << otherTeam->getName() << endl;
                 }
             }
         }
@@ -583,6 +630,13 @@ public:
                 if (arr_mv_objs->get(i)->isDragonLord() && groundteam->processTrap()) {
                     continue;
                 }
+                
+                // Before moving, use all available items if it's a warrior
+                Warrior* warrior = dynamic_cast<Warrior*>(arr_mv_objs->get(i));
+                if (warrior) {
+                    useAllAvailableItems(warrior);
+                }
+                
                 cout<< "MSG: " << arr_mv_objs->get(i)->getName() << " moved\n";
 
                 arr_mv_objs->get(i)->move();

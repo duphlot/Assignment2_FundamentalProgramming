@@ -160,8 +160,13 @@ Warrior::Warrior(int index, const Position & pos, Map * map,
 
         this->damage = max(this->damage, 0);
         this->damage = min(this->damage, 900);
+        
+        // Initialize bag with capacity of 5
+        bag = new BaseBag(5);
     }
-Warrior::~Warrior() {}
+Warrior::~Warrior() {
+    delete bag;
+}
 int Warrior::getHp() { return hp; }
 int Warrior::getDamage() { return damage; }
 void Warrior::setHp(int new_hp) { 
@@ -175,10 +180,6 @@ void Warrior::setDamage(int new_damage) {
     else damage = new_damage;
 }
 
-
-BaseBag* Warrior::getBag() const {
-    return nullptr;
-}
 
 bool Warrior::isDragonLord() const {
     return false;
@@ -879,7 +880,8 @@ BaseBag* TeamBag::get(int index) {
 }
 
 // DragonWarriorsProgram implementation
-DragonWarriorsProgram::DragonWarriorsProgram(const string &config_file_path) {
+DragonWarriorsProgram::DragonWarriorsProgram(const string &config_file_path) 
+    : countSD1(0), countSD2(0), countSD3(0), num_smart_dragons(0) {
     // Initialize all pointers to nullptr
     config = nullptr;
     flyteam1 = nullptr;
@@ -934,7 +936,6 @@ DragonWarriorsProgram::DragonWarriorsProgram(const string &config_file_path) {
     path = new Path();
     path->add(dragonlord->getCurrentPosition());
     movement_history->addPath(path);
-
 }
 
 DragonWarriorsProgram::~DragonWarriorsProgram() {
@@ -950,6 +951,52 @@ DragonWarriorsProgram::~DragonWarriorsProgram() {
 bool DragonWarriorsProgram::isStop() const {
     if (flyteam1->getHp() <= 1 && flyteam2->getHp() <= 1 && groundteam->getHp() <= 1) return true;
     return false;
+}
+
+void DragonWarriorsProgram::useAllAvailableItems(Warrior* warrior) {
+    if (!warrior || !warrior->getBag()) return;
+    
+    BaseBag* bag = warrior->getBag();
+    
+    BaseItem* item;
+    while ((item = bag->get()) != nullptr) {
+        if (item->canUse(warrior)) {
+            item->use(warrior);
+            cout << "MSG: " << warrior->getName() << " used " << item->str() << endl;
+            delete item; 
+        } else {
+            delete item;
+            break;
+        }
+    }
+}
+
+void DragonWarriorsProgram::useItemIfPossible(BaseItem* item, Warrior* warrior) {
+    if (!item || !warrior) return;
+    
+    if (item->canUse(warrior)) {
+        item->use(warrior);
+        cout << "MSG: " << warrior->getName() << " used " << item->str() << " from defeated SmartDragon" << endl;
+    } else {
+        if (warrior->getBag() && warrior->getBag()->insert(item)) {
+            cout << "MSG: " << warrior->getName() << " added " << item->str() << " to bag" << endl;
+            return; 
+        }
+    }
+    delete item;
+}
+
+BaseItem* DragonWarriorsProgram::createItemFromSmartDragon(DragonType type) {
+    switch (type) {
+        case SD1:
+            return new DragonScale();
+        case SD2:
+            return new HealingHerb();
+        case SD3:
+            return new TrapEnhancer();
+        default:
+            return nullptr;
+    }
 }
 
 
