@@ -230,7 +230,10 @@ Position FlyTeam::getRereversePosition() const {
 }
     
 void FlyTeam::move() {
-    if (hp <= 1) pos = Position::npos; // If hp is 1 or less, do not move
+    if (hp <= 1) {
+        pos = Position::npos; 
+        return ;
+    }
     for (int i = 0; i < moving_rule.size(); ++i) {
         moving_index %= moving_rule.size();
         Position next_pos = getNextPosition();
@@ -279,6 +282,7 @@ GroundTeam::GroundTeam(int index, const string & moving_rule,
 
         this->damage = max(this->damage, 0);
         this->damage = min(this->damage, 900);
+        trap_turns = 3;
     }
 Position GroundTeam::getNextPosition() {
     if (moving_rule.empty()) return Position::npos;
@@ -314,7 +318,10 @@ Position GroundTeam::getRereversePosition() const {
 }
 
 void GroundTeam::move() {
-    if (hp <= 1) pos = Position::npos; // If hp is 1 or less, do not move
+    if (hp <= 1) {
+        pos = Position::npos; 
+        return ;
+    }
     for (int i = 0; i < moving_rule.size(); ++i) {
         moving_index %= moving_rule.size();
         Position next_pos = getNextPosition();
@@ -350,7 +357,9 @@ bool GroundTeam::trap(DragonLord *dragonlord) {
     Position groundteam_pos = getCurrentPosition();
 
     if (groundteam_pos.isEqual(dragonlord_pos.getRow(), dragonlord_pos.getCol())) {
-
+        cout<<"MSG: GroundTeam trapped DragonLord for "<<trap_turns<<" turns"<<endl;
+        dragonlord->setIsTrapped(true);
+        dragonlord->setTrapTurns(trap_turns);
         return true;
     }
     return false;
@@ -377,15 +386,16 @@ Position DragonLord::getPosition() const {
 int DragonLord::manhattanDistance(const Position pos1, const Position pos2) const {
     return abs(pos1.getRow() - pos2.getRow()) + abs(pos1.getCol() - pos2.getCol());
 }
-
-Position DragonLord::getNextPosition() {
+    
+bool DragonLord::processTrap() {
     if (isTrapped) {
         trap_turns--;
         if (trap_turns == 0) setIsTrapped(false);
-        Position cur_pos = getPosition();
-        Position next_pos(cur_pos.getCol(), cur_pos.getRow());
-        return next_pos;
     }
+    return isTrapped;
+}
+
+Position DragonLord::getNextPosition() {
     if (manhattanDistance(getPosition(), flyteam1->getCurrentPosition()) > 5 && manhattanDistance(getPosition(), flyteam2->getCurrentPosition()) > 5) {
         Position next_pos = getPosition();
         return next_pos;
@@ -396,7 +406,10 @@ Position DragonLord::getNextPosition() {
     }
 }
 void DragonLord::move() {
-    if (hp <= 1) pos = Position::npos; // If hp is 1 or less, do not move
+    if (hp <= 1) {
+        pos = Position::npos; 
+        return ;
+    }
     Position next_pos = getNextPosition();
     if (map->isValid(next_pos, this)) {
         pos = next_pos;
@@ -440,7 +453,7 @@ bool ArrayMovingObject::add(MovingObject *mv_obj) {
     if (isFull()) {
         return false;
     }
-    arr_mv_objs[count++] = mv_obj;
+    arr_mv_objs[count++] = mv_obj; 
     return true;
 }
 string ArrayMovingObject::str() const {
@@ -870,12 +883,12 @@ DragonWarriorsProgram::DragonWarriorsProgram(const string &config_file_path) {
                            config->flyteam2_init_hp, config->flyteam2_init_damage);
     
     // Create GroundTeam
-    groundteam = new GroundTeam(3, config->groundteam_moving_rule,
+    groundteam = new GroundTeam(0, config->groundteam_moving_rule,
                                 config->groundteam_init_pos, map,
                                 config->groundteam_init_hp, config->groundteam_init_damage);
     
     // Create DragonLord
-    dragonlord = new DragonLord(4, config->dragonlord_init_pos, map,
+    dragonlord = new DragonLord(0, config->dragonlord_init_pos, map,
                                 flyteam1, flyteam2, groundteam);
     arr_mv_objs = new ArrayMovingObject(config->max_num_moving_objects);
     arr_mv_objs->add(flyteam1);

@@ -118,8 +118,12 @@ public:
     virtual void setHp(int new_hp) = 0;
     virtual void setDamage(int new_damage) = 0;
     virtual bool isDragonLord() const = 0;
+    virtual void setPosition(const Position &pos) {
+        this->pos = pos;
+    }
     string       getName() const {
-        return name;
+        if (index == 0) return name;
+        return name + to_string(index);
     }
 };
 
@@ -206,6 +210,7 @@ public:
     int getTrapTurns() const { return trap_turns; }
     void setIsTrapped(bool trapped) { isTrapped = trapped; }
     bool isDragonLord() const override { return true; }
+    bool processTrap();
 };
 
 // ...................
@@ -398,7 +403,7 @@ private:
     int filled;
     int totalMoves;
 public:
-    Path(int cap = 100) : capacity(cap), idx(0), filled(0), totalMoves(1) {
+    Path(int cap = 100) : capacity(cap), idx(0), filled(0), totalMoves(0) {
         positions = new Position[capacity];
     }
     Path(const Path& other) : capacity(other.capacity), idx(other.idx), filled(other.filled), totalMoves(other.totalMoves) {
@@ -414,6 +419,7 @@ public:
         if (filled < capacity) {
             positions[filled++] = pos;
         }
+        totalMoves++;
     }
 
     int getTotalMoves() const {
@@ -422,11 +428,12 @@ public:
 
     bool checkLoop() const {
         if (filled < 4) return false;
-        const Position& a = positions[filled - 4];
-        const Position& b = positions[filled - 3];
-        const Position& c = positions[filled - 2];
-        const Position& d = positions[filled - 1];
-        if (a == c && b == d) {
+        const Position& a = positions[filled - 5];
+        const Position& b = positions[filled - 4];
+        const Position& c = positions[filled - 3];
+        const Position& d = positions[filled - 2];
+        const Position& e = positions[filled - 1];
+        if (a == c && b == d && c == e) {
             return true;
         }
         return false;
@@ -503,21 +510,33 @@ public:
             << "--"
             << flyteam1->str() << "--|--" << flyteam2->str()<< "--|--" << groundteam->str() << "--|--" << dragonlord->str() << endl;
     }
-    bool win(int istep) const {
-        if (flyteam1->getCurrentPosition().isEqual(
-                dragonlord->getCurrentPosition().getRow(),
-                dragonlord->getCurrentPosition().getCol())) {
-            cout<<" MSG: FlyTeam1 encounters DragonLord" << endl;
+    bool meeting(int istep, int idx) const {
+        MovingObject *currentTeam = arr_mv_objs->get(idx);
+
+        // Check if currentTeam meets DragonLord
+        if (currentTeam != nullptr && currentTeam->getCurrentPosition() == dragonlord->getCurrentPosition() && !currentTeam->isDragonLord()) {
+            if (currentTeam == flyteam1) {
+            cout << "MSG: FlyTeam1 encounters DragonLord" << endl;
             printStep(istep);
             cout << "FlyTeam1 defeated the DragonLord!" << endl;
             return true;
-        }
-        else if (flyteam2->getCurrentPosition().isEqual(dragonlord->getCurrentPosition().getRow(),
-                dragonlord->getCurrentPosition().getCol())) {
-            cout<<" MSG: FlyTeam2 encounters DragonLord" << endl;
+            } else if (currentTeam == flyteam2) {
+            cout << "MSG: FlyTeam2 encounters DragonLord" << endl;
             printStep(istep);
             cout << "FlyTeam2 defeated the DragonLord!" << endl;
             return true;
+            } else if (currentTeam == groundteam) {
+            cout << "MSG: GroundTeam encounters DragonLord" << endl;
+            groundteam->trap(dragonlord);
+            }
+        } else {
+            MovingObject* teams[4] = {flyteam1, flyteam2, groundteam, dragonlord};
+            for (int j = 0; j < 4; ++j) {
+                if (arr_mv_objs->get(idx) == teams[j]) continue; 
+                if (currentTeam != nullptr && currentTeam->getCurrentPosition() == teams[j]->getCurrentPosition()) {
+                cout << "MSG: " << currentTeam->getName() << " meets " << teams[j]->getName() << endl;
+                }
+            }
         }
         return false;
     }
@@ -528,11 +547,11 @@ public:
             Position smartDragon;
             DragonType smartDragonType;
             MovingObject *smartDragonTarget;
+            int arrSize = arr_mv_objs->size();
+            for (int i = 0; i < arrSize; ++i) {
+                if (arr_mv_objs->get(i)->getHp() <= 1) continue;
 
-            for (int i = 0; i < arr_mv_objs->size(); ++i) {
-                // if (arr_mv_objs->get(i)->getHp() <= 1) continue;
-                
-                if (arr_mv_objs->get(i)->isDragonLord() && movement_history->getPath(i)->getTotalMoves() % 5 == 0) {
+                if (arr_mv_objs->get(i)->isDragonLord() && movement_history->getPath(i)->getTotalMoves() % 5 == 0 && movement_history->getPath(i)->getTotalMoves() != 0) {
                     Position prevPos = arr_mv_objs->get(i)->getCurrentPosition();
                     DragonType newType = SD1;
                     MovingObject *target = flyteam1;
@@ -562,32 +581,39 @@ public:
                     smartDragonType = newType;
                     smartDragonTarget = target;
                 }
-                
+                if (arr_mv_objs->get(i)->isDragonLord() && dragonlord->processTrap()) {
+                    continue;
+                }
                 cout<< "MSG: " << arr_mv_objs->get(i)->getName() << " moved\n";
 
                 arr_mv_objs->get(i)->move();
-                if (win(istep)) return ;
                 // saving step
                 movement_history->getPath(i)->add(arr_mv_objs->get(i)->getCurrentPosition());
                 if (!arr_mv_objs->get(i)->isDragonLord() && arr_mv_objs->get(i)->getHp() > 1 && movement_history->getPath(i)->checkLoop()) {
                     cout<<"MSG: "<<arr_mv_objs->get(i)->getName()<<" eliminated due to being stuck for 3 similar patterns!"<<endl;
                     arr_mv_objs->get(i)->setHp(1);
+                    arr_mv_objs->get(i)->setPosition(Position::npos);
                 }
-            }
-            if (createSmartDragon) {
-                int damage = (smartDragon.getRow() * 257 + smartDragon.getCol() * 139 + 89) % 900 + 1;
-                SmartDragon *objectSmartDragon = new SmartDragon(
-                        arr_mv_objs->size()+1, smartDragon, map,
-                        smartDragonType, smartDragonTarget, damage);
-                arr_mv_objs->add(objectSmartDragon);
-                string stringType;
-                if (smartDragonType == SD1) stringType = "SD1";
-                else if (smartDragonType == SD2) stringType = "SD2";
-                else if (smartDragonType == SD3) stringType = "SD3";
-                cout<< "MSG : "<<stringType <<" created at "<<smartDragon.str()<<endl;
-                Path *path = new Path();
-                path->add(smartDragonType);
-                movement_history->addPath(path);
+                if (meeting(istep, i)) return ;
+                if (createSmartDragon) {
+                    createSmartDragon = false;
+                    int damage = (smartDragon.getRow() * 257 + smartDragon.getCol() * 139 + 89) % 900 + 1;
+                    SmartDragon *objectSmartDragon = new SmartDragon(
+                            0, smartDragon, map,
+                            smartDragonType, smartDragonTarget, damage);
+                    if (!arr_mv_objs->add(objectSmartDragon)) {
+                        cout<<"MSG: ArrayMovingObjects is full. Cannot create more SmartDragon"<<endl;
+                        continue;
+                    }
+                    string stringType;
+                    if (smartDragonType == SD1) stringType = "SD1";
+                    else if (smartDragonType == SD2) stringType = "SD2";
+                    else if (smartDragonType == SD3) stringType = "SD3";
+                    cout<< "MSG : "<<stringType <<" created at "<<smartDragon.str()<<endl;
+                    Path *path = new Path();
+                    path->add(smartDragonType);
+                    movement_history->addPath(path);
+                }
             }
             if (verbose) {
                 printStep(istep);
