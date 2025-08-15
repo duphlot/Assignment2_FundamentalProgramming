@@ -553,13 +553,14 @@ public:
                     } else if (smartDragon->getDragonType() == SD3) {
                         countSD3--;
                     }
+                    cout << "MSG: FlyTeam1 encounters SmartDragon" << endl;
+
                 } else {
                     currentTeam->setHp(currentTeam->getHp() - 100);
                 }
             }
         }
 
-        // Check if currentTeam meets DragonLord
         if (currentTeam != nullptr && currentTeam->getCurrentPosition() == dragonlord->getCurrentPosition() && !currentTeam->isDragonLord()) {
             if (currentTeam == flyteam1) {
             cout << "MSG: FlyTeam1 encounters DragonLord" << endl;
