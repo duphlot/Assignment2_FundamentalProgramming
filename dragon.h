@@ -494,12 +494,6 @@ public:
     GroundTeam         *groundteam;
     DragonLord         *dragonlord;
     MovementHistory    *movement_history;
-
-    BaseBag           *flyteam1_bag;
-    BaseBag           *flyteam2_bag;
-    BaseBag           *groundteam_bag;
-    BaseBag           *dragonlord_bag;
-    TeamBag           *team_bag;
     int countSD1, countSD2, countSD3;
     int num_smart_dragons;
 
@@ -543,9 +537,13 @@ public:
                 if (currentTeam->getDamage() > otherTeam->getDamage()){
                     Warrior* warrior = dynamic_cast<Warrior*>(currentTeam);
                     if (warrior) {
-                        BaseItem* droppedItem = createItemFromSmartDragon(warrior, smartDragon->getDragonType());
+                        BaseItem* droppedItem = createItemFromSmartDragon(currentTeam, smartDragon->getDragonType());
                         if (droppedItem) {
-                            useItemIfPossible(droppedItem, warrior);
+                            if (warrior->getBag() && warrior->getBag()->insert(droppedItem)) {
+                                cout << "MSG: " << warrior->getName() << " added " << droppedItem->str() << " to bag from defeated SmartDragon" << endl;
+                            } else {
+                                useItemIfPossible(droppedItem, warrior);
+                            }
                         }
                     }
                     

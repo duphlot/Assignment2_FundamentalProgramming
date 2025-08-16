@@ -240,7 +240,7 @@ void FlyTeam::move() {
     for (int i = 0; i < moving_rule.size(); ++i) {
         moving_index %= moving_rule.size();
         Position next_pos = getNextPosition();
-        if (map->isValid(next_pos, this) && (map->isPath(next_pos) )) {
+        if (map->isValid(next_pos, this) && (map->isPath(next_pos))) {
             pos = next_pos;
         } else {
             Position reverse_pos = getRereversePosition();
@@ -941,15 +941,6 @@ DragonWarriorsProgram::DragonWarriorsProgram(const string &config_file_path)
     movement_history->addPath(path);
 }
 
-DragonWarriorsProgram::~DragonWarriorsProgram() {
-    delete config;
-    delete flyteam1;
-    delete flyteam2;
-    delete groundteam;
-    delete dragonlord;
-    delete map;
-    delete arr_mv_objs;
-}
 
 bool DragonWarriorsProgram::isStop() const {
     if (flyteam1->getHp() <= 1 && flyteam2->getHp() <= 1 && groundteam->getHp() <= 1) return true;
