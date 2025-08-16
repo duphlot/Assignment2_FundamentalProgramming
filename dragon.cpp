@@ -240,7 +240,7 @@ void FlyTeam::move() {
     for (int i = 0; i < moving_rule.size(); ++i) {
         moving_index %= moving_rule.size();
         Position next_pos = getNextPosition();
-        if (map->isValid(next_pos, this) && (map->isPath(next_pos) || map->isGroundObstacle(next_pos))) {
+        if (map->isValid(next_pos, this) && (map->isPath(next_pos) )) {
             pos = next_pos;
         } else {
             Position reverse_pos = getRereversePosition();
@@ -248,11 +248,13 @@ void FlyTeam::move() {
             cout<<"MSG: "<<getName()<<" at"<<getCurrentPosition().str()
                 <<" got blocked when moving "<<moving_rule[moving_index]
                 <<" to "<<next_pos.str()<<endl;
-            if (map->isValid(reverse_pos, this) && (map->isPath(reverse_pos) || map->isGroundObstacle(reverse_pos))) {
+            if (map->isValid(reverse_pos, this) && (map->isPath(reverse_pos) )) {
                 // MSG: GroundTeam moved to the opposite direction D to (1,0)
                 cout<<"MSG: "<<getName()<<" moved to the opposite direction "
                     <<oppositeDirection(moving_rule[moving_index])<<" to "<<reverse_pos.str()<<endl;
                 pos = reverse_pos;
+            } else {
+                cout<<"MSG: "<<getName()<<" got blocked both side, stay at "<<getCurrentPosition().str()<<endl;
             }
         }
         moving_index = (moving_index + 1) % moving_rule.size();
@@ -325,6 +327,7 @@ void GroundTeam::move() {
         pos = Position::npos; 
         return ;
     }
+    moving_index = 0;
     cout<< "MSG: " << getName() << " moved\n";
     for (int i = 0; i < moving_rule.size(); ++i) {
         moving_index %= moving_rule.size();
@@ -342,6 +345,8 @@ void GroundTeam::move() {
                 cout<<"MSG: "<<getName()<<" moved to the opposite direction "
                     <<oppositeDirection(moving_rule[moving_index])<<" to "<<reverse_pos.str()<<endl;
                 pos = reverse_pos;
+            } else {
+                cout<<"MSG: "<<getName()<<" got blocked both side, stay at "<<getCurrentPosition().str()<<endl;
             }
         }
         moving_index = (moving_index + 1) % moving_rule.size();
@@ -369,19 +374,13 @@ bool GroundTeam::swapPosition() {
     return false;
 }
 
-bool GroundTeam::trap(DragonLord *dragonlord) {
-    if (dragonlord == nullptr) return false;
-
+void GroundTeam::trap(DragonLord *dragonlord) {
     Position dragonlord_pos = dragonlord->getPosition();
     Position groundteam_pos = getCurrentPosition();
 
-    if (groundteam_pos.isEqual(dragonlord_pos.getRow(), dragonlord_pos.getCol())) {
-        cout<<"MSG: GroundTeam trapped DragonLord for "<<trap_turns<<" turns"<<endl;
-        setIsTrapped(true);
-        trap_duration = trap_turns;
-        return true;
-    }
-    return false;
+    cout<<"MSG: GroundTeam trapped DragonLord for "<<trap_turns<<" turns"<<endl;
+    setIsTrapped(true);
+    trap_duration = trap_turns;
 }
 
     
@@ -990,14 +989,22 @@ void DragonWarriorsProgram::useItemIfPossible(BaseItem* item, Warrior* warrior) 
     delete item;
 }
 
-BaseItem* DragonWarriorsProgram::createItemFromSmartDragon(DragonType type) {
+BaseItem* DragonWarriorsProgram::createItemFromSmartDragon(MovingObject* warrior, DragonType type) {
     switch (type) {
         case SD1:
             return new DragonScale();
         case SD2:
             return new HealingHerb();
         case SD3:
-            return new TrapEnhancer();
+            if (warrior->getName() == "GroundTeam") {
+                return new TrapEnhancer();
+            } else {
+                if (warrior->getName() == "FlyTeam1") {
+                    return new DragonScale();
+                } else {
+                    return new HealingHerb();
+                }
+            }
         default:
             return nullptr;
     }

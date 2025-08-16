@@ -125,6 +125,9 @@ public:
     string       getName() const {
         return name;
     }
+    int          getIndex() const {
+        return index;
+    }
 };
 
 // ——— Warrior ———
@@ -185,7 +188,7 @@ public:
     Position getRereversePosition() const;
     void move() override;
     string str() const override;
-    bool trap(DragonLord *dragonlord);
+    void trap(DragonLord *dragonlord);
     int getTrapTurns() const;
     void setTrapTurns(int turns);
     bool isDragonLord() const override { return false; }
@@ -507,7 +510,7 @@ public:
     // Helper functions for bag management
     void useAllAvailableItems(Warrior* warrior);
     void useItemIfPossible(BaseItem* item, Warrior* warrior);
-    BaseItem* createItemFromSmartDragon(DragonType type);
+    BaseItem* createItemFromSmartDragon(MovingObject* warrior, DragonType type);
 
     void printResult() const {
         if (flyteam1->getCurrentPosition().isEqual(
@@ -540,7 +543,7 @@ public:
                 if (currentTeam->getDamage() > otherTeam->getDamage()){
                     Warrior* warrior = dynamic_cast<Warrior*>(currentTeam);
                     if (warrior) {
-                        BaseItem* droppedItem = createItemFromSmartDragon(smartDragon->getDragonType());
+                        BaseItem* droppedItem = createItemFromSmartDragon(warrior, smartDragon->getDragonType());
                         if (droppedItem) {
                             useItemIfPossible(droppedItem, warrior);
                         }
@@ -581,7 +584,18 @@ public:
                 if (i == idx) continue; 
                 MovingObject *otherTeam = arr_mv_objs->get(i);
                 if (currentTeam->getCurrentPosition() == otherTeam->getCurrentPosition()) {
-                    cout << "MSG: " << currentTeam->getName() << " meets " << otherTeam->getName() << endl;
+                    bool check = false;
+                    string name1 = currentTeam->getName();
+                    string name2 = otherTeam->getName();
+                    if (name1 == name2) check = true;
+                    if (name1 == "FlyTeam")  name1 += to_string(currentTeam->getIndex());
+                    if (name2 == "FlyTeam")  name2 += to_string(otherTeam->getIndex());
+                    cout << "MSG: " << name1 << " meets " << name2 << endl;
+                    if (check) {
+                        printStep(istep);
+                        printResult();
+                        return true;
+                    }
                 }
             }
         }
