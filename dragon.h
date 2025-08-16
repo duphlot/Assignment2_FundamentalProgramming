@@ -585,7 +585,7 @@ public:
                     bool check = false;
                     string name1 = currentTeam->getName();
                     string name2 = otherTeam->getName();
-                    if (name1 == name2) check = true;
+                    if (name1 == name2 &&  currentTeam->getCurrentPosition() == Position::npos) check = true;
                     if (name1 == "FlyTeam")  name1 += to_string(currentTeam->getIndex());
                     if (name2 == "FlyTeam")  name2 += to_string(otherTeam->getIndex());
                     cout << "MSG: " << name1 << " meets " << name2 << endl;
