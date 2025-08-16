@@ -123,8 +123,7 @@ public:
         this->pos = pos;
     }
     string       getName() const {
-        if (index == 0) return name;
-        return name + to_string(index);
+        return name;
     }
 };
 
@@ -166,6 +165,7 @@ public:
     bool attack(DragonLord *dragonlord);
     bool isDragonLord() const override { return false; }
     bool isSmartDragon() const override { return false; }
+    string getName() const { return name + to_string(index); }
 
 };
 
@@ -638,8 +638,6 @@ public:
                     useAllAvailableItems(warrior);
                 }
                 
-                cout<< "MSG: " << arr_mv_objs->get(i)->getName() << " moved\n";
-
                 arr_mv_objs->get(i)->move();
                 // saving step
                 movement_history->getPath(i)->add(arr_mv_objs->get(i)->getCurrentPosition());

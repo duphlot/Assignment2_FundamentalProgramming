@@ -132,6 +132,7 @@ MovingObject::~MovingObject() {}
 Position MovingObject::getCurrentPosition() const { return pos; }
 Position MovingObject::getNextPosition() { return Position::npos; }
 void MovingObject::move() {
+    cout<< "MSG: " << getName() << " moved\n";
     Position next_pos = getNextPosition();
     if (map->isValid(next_pos, this)) {
         pos = next_pos;
@@ -235,6 +236,7 @@ void FlyTeam::move() {
         pos = Position::npos; 
         return ;
     }
+    cout<< "MSG: " << getName() << " moved\n";
     for (int i = 0; i < moving_rule.size(); ++i) {
         moving_index %= moving_rule.size();
         Position next_pos = getNextPosition();
@@ -323,6 +325,7 @@ void GroundTeam::move() {
         pos = Position::npos; 
         return ;
     }
+    cout<< "MSG: " << getName() << " moved\n";
     for (int i = 0; i < moving_rule.size(); ++i) {
         moving_index %= moving_rule.size();
         Position next_pos = getNextPosition();
@@ -436,6 +439,7 @@ void DragonLord::move() {
         pos = Position::npos; 
         return ;
     }
+    cout<< "MSG: " << getName() << " moved\n";
     Position next_pos = getNextPosition();
     if (map->isValid(next_pos, this)) {
         pos = next_pos;

@@ -103,6 +103,30 @@ int main(int argc, const char * argv[]) {
     // myProgram->run(true);
     // delete myProgram;
 
-    TestDragonWar::satc_22();
+    TestDragonWar::satc_19();
+//     cout << "----- Sample Testcase 09 -----" << endl;
+// Map * map = new Map(10, 10, 0, nullptr, 0, nullptr);
+// FlyTeam * flyteam = new FlyTeam(1, "RD", Position(0, 0), map, 100, 100);
+// GroundTeam * groundteam = new GroundTeam(2, "UL", Position(9, 9), map, 100, 100);
+
+// cout << "Initial positions:" << endl;
+// cout << flyteam->str() << endl;
+// cout << groundteam->str() << endl;
+
+// cout << "After first move:" << endl;
+// flyteam->move();
+// groundteam->move();
+// cout << flyteam->str() << endl;
+// cout << groundteam->str() << endl;
+
+// cout << "After second move:" << endl;
+// flyteam->move();
+// groundteam->move();
+// cout << flyteam->str() << endl;
+// cout << groundteam->str() << endl;
+
+// delete flyteam;
+// delete groundteam;
+// delete map;
     return 0;
 }
