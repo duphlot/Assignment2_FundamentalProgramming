@@ -941,6 +941,16 @@ DragonWarriorsProgram::DragonWarriorsProgram(const string &config_file_path)
     movement_history->addPath(path);
 }
 
+DragonWarriorsProgram::~DragonWarriorsProgram() {
+    delete config;
+    delete flyteam1;
+    delete flyteam2;
+    delete groundteam;
+    delete dragonlord;
+    delete map;
+    delete arr_mv_objs;
+    delete movement_history;
+}
 
 bool DragonWarriorsProgram::isStop() const {
     if (flyteam1->getHp() <= 1 && flyteam2->getHp() <= 1 && groundteam->getHp() <= 1) return true;
