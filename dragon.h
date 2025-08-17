@@ -48,11 +48,14 @@ class MapElement {
 private:
     ElementType type;
     int         req_dmg; 
+    int r;
+    int c;
 public:
     MapElement(ElementType type, int in_req_dmg = 0);
     virtual ~MapElement();
     ElementType getType() const;
     int getReqDmg()       const;
+    void setPosition(int r, int c);
 };
 
 // ——— Position ———
@@ -318,6 +321,7 @@ protected:
     int capacity;
     int count;
     BaseItem **items;
+    Warrior* owner;  
 public:
     BaseBag(int capacity);
     virtual ~BaseBag();
@@ -325,7 +329,7 @@ public:
     virtual BaseItem* get();
     virtual BaseItem* get(ItemType itemType);
     virtual string str() const;
-
+    void setOwner(Warrior* w); 
 };
 
 // ...................
@@ -501,9 +505,7 @@ public:
 
     bool   isStop() const;
 
-    // Helper functions for bag management
     void useAllAvailableItems(Warrior* warrior);
-    void useItemIfPossible(BaseItem* item, Warrior* warrior);
     BaseItem* createItemFromSmartDragon(MovingObject* warrior, DragonType type);
 
     void printResult() const {
@@ -539,10 +541,13 @@ public:
                     if (warrior) {
                         BaseItem* droppedItem = createItemFromSmartDragon(currentTeam, smartDragon->getDragonType());
                         if (droppedItem) {
-                            if (warrior->getBag() && warrior->getBag()->insert(droppedItem)) {
-                                cout << "MSG: " << warrior->getName() << " added " << droppedItem->str() << " to bag from defeated SmartDragon" << endl;
+                            if (droppedItem->canUse(warrior)) {
+                                droppedItem->use(warrior);
+                                cout << "MSG: " << warrior->getName() << " used " << droppedItem->str() << endl;
+                                delete droppedItem;
+                            } else if (warrior->getBag() && warrior->getBag()->insert(droppedItem)) {
                             } else {
-                                useItemIfPossible(droppedItem, warrior);
+                                delete droppedItem;
                             }
                         }
                     }
@@ -599,6 +604,7 @@ public:
         }
         return false;
     }
+    int arrSize;
     void run(bool verbose) {
         // TODO
         for (int istep = 0; istep < config->num_steps; ++istep) {
@@ -606,7 +612,7 @@ public:
             Position smartDragon;
             DragonType smartDragonType;
             MovingObject *smartDragonTarget;
-            int arrSize = arr_mv_objs->size();
+            arrSize = arr_mv_objs->size();
             for (int i = 0; i < arrSize; ++i) {
                 if (arr_mv_objs->get(i)->getHp() <= 1) continue;
 
@@ -644,17 +650,17 @@ public:
                     continue;
                 }
                 
-                // Before moving, use all available items if it's a warrior
                 Warrior* warrior = dynamic_cast<Warrior*>(arr_mv_objs->get(i));
                 if (warrior) {
                     useAllAvailableItems(warrior);
                 }
                 
                 arr_mv_objs->get(i)->move();
-                // saving step
                 movement_history->getPath(i)->add(arr_mv_objs->get(i)->getCurrentPosition());
                 if (!arr_mv_objs->get(i)->isDragonLord() && arr_mv_objs->get(i)->getHp() > 1 && movement_history->getPath(i)->checkLoop()) {
-                    cout<<"MSG: "<<arr_mv_objs->get(i)->getName()<<" eliminated due to being stuck for 3 similar patterns!"<<endl;
+                    string name = arr_mv_objs->get(i)->getName();
+                    if (name == "FlyTeam") name += to_string(arr_mv_objs->get(i)->getIndex());
+                    cout<<"MSG: "<<name<<" eliminated due to being stuck for 3 similar patterns!"<<endl;
                     arr_mv_objs->get(i)->setHp(1);
                     arr_mv_objs->get(i)->setPosition(Position::npos);
                 }
@@ -673,7 +679,7 @@ public:
                     if (smartDragonType == SD1) stringType = "SD1";
                     else if (smartDragonType == SD2) stringType = "SD2";
                     else if (smartDragonType == SD3) stringType = "SD3";
-                    cout<< "MSG : "<<stringType <<" created at "<<smartDragon.str()<<endl;
+                    cout<< "MSG: "<<stringType <<" created at "<<smartDragon.str()<<endl;
                     Path *path = new Path();
                     path->add(smartDragonType);
                     movement_history->addPath(path);

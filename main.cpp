@@ -103,7 +103,83 @@ int main(int argc, const char * argv[]) {
     // myProgram->run(true);
     // delete myProgram;
 
-    TestDragonWar::satc_22();
+    // Test BaseBag functionality
+    // cout << "\n----- Testing BaseBag Class -----" << endl;
+    
+    // // Test FlyTeam bag (capacity = 5)
+    // Map* testMap = new Map(5, 5, 0, nullptr, 0, nullptr);
+    // FlyTeam* flyTeam = new FlyTeam(1, "R", Position(0, 0), testMap, 80, 350);
+    
+    // cout << "FlyTeam stats - HP: " << flyTeam->getHp() << ", Damage: " << flyTeam->getDamage() << endl;
+    // BaseBag* flyBag = flyTeam->getBag();
+    // cout << "FlyTeam bag initial state: " << flyBag->str() << endl;
+    
+    // // Test inserting items into FlyTeam bag (capacity = 5)
+    // cout << "\nTesting FlyTeam bag (capacity = 5):" << endl;
+    // for (int i = 0; i < 6; i++) {
+    //     DragonScale* item = new DragonScale();
+    //     bool inserted = flyBag->insert(item);
+    //     cout << "Insert item " << (i+1) << ": " << (inserted ? "Success" : "Failed") << endl;
+    //     if (!inserted) delete item;
+    // }
+    // cout << "FlyTeam bag after insertions: " << flyBag->str() << endl;
+    
+    // // Test GroundTeam bag (capacity = 7)
+    // GroundTeam* groundTeam = new GroundTeam(2, "U", Position(1, 1), testMap, 70, 300);
+    // cout << "\nGroundTeam stats - HP: " << groundTeam->getHp() << ", Damage: " << groundTeam->getDamage() << endl;
+    // BaseBag* groundBag = groundTeam->getBag();
+    // cout << "GroundTeam bag initial state: " << groundBag->str() << endl;
+    
+    // cout << "\nTesting GroundTeam bag (capacity = 7):" << endl;
+    // for (int i = 0; i < 8; i++) {
+    //     HealingHerb* item = new HealingHerb();
+    //     bool inserted = groundBag->insert(item);
+    //     cout << "Insert item " << (i+1) << ": " << (inserted ? "Success" : "Failed") << endl;
+    //     if (!inserted) delete item;
+    // }
+    // cout << "GroundTeam bag after insertions: " << groundBag->str() << endl;
+    
+    // // Test get() functionality
+    // cout << "\nTesting get() functionality:" << endl;
+    
+    // // Set warrior stats to allow item usage
+    // flyTeam->setDamage(300); // Allow DragonScale usage
+    // BaseItem* item = flyBag->get();
+    // if (item) {
+    //     cout << "Got item from FlyTeam bag: " << item->str() << endl;
+    //     cout << "Can use: " << (item->canUse(flyTeam) ? "Yes" : "No") << endl;
+    //     if (item->canUse(flyTeam)) {
+    //         int oldDamage = flyTeam->getDamage();
+    //         item->use(flyTeam);
+    //         cout << "Used item. Damage: " << oldDamage << " -> " << flyTeam->getDamage() << endl;
+    //     }
+    //     delete item;
+    //     cout << "FlyTeam bag after get(): " << flyBag->str() << endl;
+    // }
+    
+    // groundTeam->setHp(80); // Allow HealingHerb usage
+    // item = groundBag->get();
+    // if (item) {
+    //     cout << "Got item from GroundTeam bag: " << item->str() << endl;
+    //     cout << "Can use: " << (item->canUse(groundTeam) ? "Yes" : "No") << endl;
+    //     if (item->canUse(groundTeam)) {
+    //         int oldHp = groundTeam->getHp();
+    //         item->use(groundTeam);
+    //         cout << "Used item. HP: " << oldHp << " -> " << groundTeam->getHp() << endl;
+    //     }
+    //     delete item;
+    //     cout << "GroundTeam bag after get(): " << groundBag->str() << endl;
+    // }
+    
+    // cout << "Fixed: Different team bag capacities work correctly!" << endl;
+    // cout << "FlyTeam bag capacity: 5, GroundTeam bag capacity: 7" << endl;
+    
+    // delete flyTeam;
+    // delete groundTeam;
+    // delete testMap;
+    // cout << "\n----- BaseBag Testing Complete -----" << endl;
+
+    TestDragonWar::satc_19();
 //     cout << "----- Sample Testcase 09 -----" << endl;
 // Map * map = new Map(10, 10, 0, nullptr, 0, nullptr);
 // FlyTeam * flyteam = new FlyTeam(1, "RD", Position(0, 0), map, 100, 100);

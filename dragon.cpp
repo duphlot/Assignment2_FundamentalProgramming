@@ -12,7 +12,13 @@ MapElement::MapElement(ElementType type, int in_req_dmg): type(type), req_dmg(in
 }
 MapElement::~MapElement() {}
 ElementType MapElement::getType() const { return type; }
-int MapElement::getReqDmg() const {return req_dmg; }
+int MapElement::getReqDmg() const {
+    return req_dmg;
+}
+void MapElement::setPosition(int r, int c) {
+    this->r = r;
+    this->c = c;
+}
 
 // 3.2
 Map::Map(int rows, int cols, int num_obst, Position *obst, int num_gro_obst, Position *gro_obst): num_rows(rows), num_cols(cols) {
@@ -162,8 +168,8 @@ Warrior::Warrior(int index, const Position & pos, Map * map,
         this->damage = max(this->damage, 0);
         this->damage = min(this->damage, 900);
         
-        // Initialize bag with capacity of 5
-        bag = new BaseBag(5);
+        // Bag will be initialized by subclasses with appropriate capacity
+        bag = nullptr;
     }
 Warrior::~Warrior() {
     delete bag;
@@ -195,6 +201,10 @@ FlyTeam::FlyTeam(int index, const string & moving_rule,
 
         damage = max(damage, 0);
         damage = min(damage, 900);
+        
+        // FlyTeam bag capacity = 5
+        bag = new BaseBag(5);
+        bag->setOwner(this);
     }
 string FlyTeam::getMovingRule() const { return moving_rule; }
 Position FlyTeam::getNextPosition() {
@@ -245,7 +255,7 @@ void FlyTeam::move() {
         } else {
             Position reverse_pos = getRereversePosition();
             // MSG: GroundTeam at (0,0) got blocked when moving U to (-1,0)
-            cout<<"MSG: "<<getName()<<" at"<<getCurrentPosition().str()
+            cout<<"MSG: "<<getName()<<" at "<<getCurrentPosition().str()
                 <<" got blocked when moving "<<moving_rule[moving_index]
                 <<" to "<<next_pos.str()<<endl;
             if (map->isValid(reverse_pos, this) && (map->isPath(reverse_pos) )) {
@@ -288,6 +298,10 @@ GroundTeam::GroundTeam(int index, const string & moving_rule,
         this->damage = max(this->damage, 0);
         this->damage = min(this->damage, 900);
         trap_turns = 3;
+        
+        // GroundTeam bag capacity = 7
+        bag = new BaseBag(7);
+        bag->setOwner(this);
     }
 Position GroundTeam::getNextPosition() {
     if (moving_rule.empty()) return Position::npos;
@@ -338,7 +352,7 @@ void GroundTeam::move() {
             pos = next_pos;
         } else {
             Position reverse_pos = getRereversePosition();
-            cout<<"MSG: "<<getName()<<" at"<<getCurrentPosition().str()
+            cout<<"MSG: "<<getName()<<" at "<<getCurrentPosition().str()
                 <<" got blocked when moving "<<moving_rule[moving_index]
                 <<" to "<<next_pos.str()<<endl;
             if (map->isValid(reverse_pos, this) && (map->isPath(reverse_pos) || (map->isGroundObstacle(reverse_pos) && (reverse_pos.getRow() * 257 + reverse_pos.getCol() * 139 + 89) % 900 + 1 < damage))) {
@@ -354,9 +368,7 @@ void GroundTeam::move() {
     }
 }
 string GroundTeam::str() const {
-    int tempIndex = max(index,1);
-    tempIndex = min(tempIndex, 2);
-    return "GroundTeam[index=" + to_string(tempIndex) + ";pos=" + pos.str() + ";moving_rule=" + moving_rule + "]";
+    return "GroundTeam[index=" + std::to_string(index) + ";pos=" + pos.str() + ";moving_rule=" + moving_rule + "]";
 }
 
 bool GroundTeam::swapPosition() {
@@ -365,12 +377,27 @@ bool GroundTeam::swapPosition() {
     int col = next_pos.getCol();
     next_pos.setRow(col);
     next_pos.setCol(row);
+
     if (map->isValid(next_pos, this) && 
         (map->isPath(next_pos) || 
         (map->isGroundObstacle(next_pos) && (next_pos.getRow() * 257 + next_pos.getCol() * 139 + 89) % 900 + 1 < damage))) {
-            pos = next_pos;
+        pos = next_pos;
+        return true;
+    }
+
+    int dx[] = {-1, 0, 1, 0};
+    int dy[] = {0, 1, 0, -1};
+    for (int i = 0; i < 4; ++i) {
+        Position try_pos(row + dx[i], col + dy[i]);
+        if (map->isValid(try_pos, this) && 
+            (map->isPath(try_pos) || 
+            (map->isGroundObstacle(try_pos) && (try_pos.getRow() * 257 + try_pos.getCol() * 139 + 89) % 900 + 1 < damage))) {
+            pos = try_pos;
             return true;
-    } 
+        }
+    }
+
+    setHp(1);
     return false;
 }
 
@@ -736,13 +763,23 @@ Position SmartDragon::getNextPosition() {
     } else if (smartdragon_type == SD3) {
         return target->getCurrentPosition(); 
     }
-    return pos; // Default case
+    return pos; 
 }
 
 void SmartDragon::move() {
+    cout<< "MSG: " << getName() << " moved\n";
     Position next_pos = getNextPosition();
-    if (map->isValid(next_pos, target) && next_pos != Position::npos) {
-        pos = next_pos;
+    int row = next_pos.getRow();
+    int col = next_pos.getCol();
+    if (row < 0) row = 0;
+    if (col < 0) col = 0;
+    if (map) {
+        if (row >= map->getNumRows()) row = map->getNumRows() - 1;
+        if (col >= map->getNumCols()) col = map->getNumCols() - 1;
+    }
+    Position clamped_pos(row, col);
+    if (map->isValid(clamped_pos, target) && clamped_pos != Position::npos) {
+        pos = clamped_pos;
     }
 }
 string SmartDragon::str() const {
@@ -774,12 +811,10 @@ void SmartDragon::setDamage(int new_damage) {
 }
 
 // 3.13
-// BaseItem implementation
 BaseItem::BaseItem(ItemType type, int value) : type(type), value(value) {}
 BaseItem::~BaseItem() {}
 
-// Base Bag implementation
-BaseBag::BaseBag(int capacity) : capacity(capacity), count(0) {
+BaseBag::BaseBag(int capacity) : capacity(capacity), count(0), owner(nullptr) {
         items = new BaseItem*[capacity];
         for (int i = 0; i < capacity; ++i) items[i] = nullptr;
     }
@@ -797,6 +832,7 @@ bool BaseBag::insert(BaseItem* item) {
     for (int i = 0; i < capacity; ++i) {
         if (items[i] == nullptr) {
             items[i] = item;
+            count++;  
             return true;
         }
     }
@@ -804,9 +840,9 @@ bool BaseBag::insert(BaseItem* item) {
 }
 
 BaseItem* BaseBag::get() {
-    Warrior* owner = (Warrior*)(this); 
+    if (owner == nullptr) return nullptr; 
+    
     int index_first_item = -1;
-    // item dau danh sach
     for (int i = 0; i < capacity; ++i){
         if (items[i] != nullptr) {
             index_first_item = i;
@@ -826,7 +862,8 @@ BaseItem* BaseBag::get() {
 }
 
 BaseItem* BaseBag::get(ItemType itemType) {
-    Warrior* owner = (Warrior*)(this); 
+    if (owner == nullptr) return nullptr; 
+    
     int index_first_item = -1;
     for (int i = 0; i < capacity; ++i){
         if (items[i] != nullptr) {
@@ -850,11 +887,18 @@ string BaseBag::str() const {
     string result = "Bag[count=" + to_string(count) + ";";
     for (int i = 0; i < capacity; ++i) {
         if (items[i] != nullptr) {
-            result += items[i]->str() + ", ";
+            result += items[i]->str();
+            if (i < capacity - 1) {
+                result += ", ";
+            }
         }
     }
     result += "]";
     return result;
+}
+
+void BaseBag::setOwner(Warrior* w) {
+    owner = w;
 }
 
 
@@ -882,10 +926,8 @@ BaseBag* TeamBag::get(int index) {
     return arrBaseBag[index];
 }
 
-// DragonWarriorsProgram implementation
 DragonWarriorsProgram::DragonWarriorsProgram(const string &config_file_path) 
     : countSD1(0), countSD2(0), countSD3(0), num_smart_dragons(0) {
-    // Initialize all pointers to nullptr
     config = nullptr;
     flyteam1 = nullptr;
     flyteam2 = nullptr;
@@ -913,7 +955,7 @@ DragonWarriorsProgram::DragonWarriorsProgram(const string &config_file_path)
                            config->flyteam2_init_hp, config->flyteam2_init_damage);
     
     // Create GroundTeam
-    groundteam = new GroundTeam(0, config->groundteam_moving_rule,
+    groundteam = new GroundTeam(3, config->groundteam_moving_rule,
                                 config->groundteam_init_pos, map,
                                 config->groundteam_init_hp, config->groundteam_init_damage);
     
@@ -975,21 +1017,6 @@ void DragonWarriorsProgram::useAllAvailableItems(Warrior* warrior) {
     }
 }
 
-void DragonWarriorsProgram::useItemIfPossible(BaseItem* item, Warrior* warrior) {
-    if (!item || !warrior) return;
-    
-    if (item->canUse(warrior)) {
-        item->use(warrior);
-        cout << "MSG: " << warrior->getName() << " used " << item->str() << " from defeated SmartDragon" << endl;
-    } else {
-        if (warrior->getBag() && warrior->getBag()->insert(item)) {
-            cout << "MSG: " << warrior->getName() << " added " << item->str() << " to bag" << endl;
-            return; 
-        }
-    }
-    delete item;
-}
-
 BaseItem* DragonWarriorsProgram::createItemFromSmartDragon(MovingObject* warrior, DragonType type) {
     switch (type) {
         case SD1:
@@ -1000,7 +1027,7 @@ BaseItem* DragonWarriorsProgram::createItemFromSmartDragon(MovingObject* warrior
             if (warrior->getName() == "GroundTeam") {
                 return new TrapEnhancer();
             } else {
-                if (warrior->getName() == "FlyTeam1") {
+                if (warrior->getName() == "FlyTeam" && warrior->getIndex() == 1) {
                     return new DragonScale();
                 } else {
                     return new HealingHerb();
