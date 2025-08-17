@@ -401,17 +401,7 @@ bool GroundTeam::swapPosition() {
     return false;
 }
 
-void GroundTeam::trap(DragonLord *dragonlord) {
-    Position dragonlord_pos = dragonlord->getPosition();
-    Position groundteam_pos = getCurrentPosition();
-
-    cout<<"MSG: GroundTeam trapped DragonLord for "<<trap_turns<<" turns"<<endl;
-    setIsTrapped(true);
-    trap_duration = trap_turns;
-}
-
-    
-bool GroundTeam::processTrap() {
+bool GroundTeam::trap(DragonLord *dragonlord) {
     if (isTrapped) {
         --trap_duration;
         if (trap_duration == 0) {
@@ -422,10 +412,20 @@ bool GroundTeam::processTrap() {
             } else {
                 cout<<"MSG: DragonLord escaped the trap! Failed to move GroundTeam - eliminated!"<<endl;
             }
-            return true;
+            return true; 
         }
+        return isTrapped; 
     }
-    return isTrapped;
+    
+    Position dragonlord_pos = dragonlord->getPosition();
+    Position groundteam_pos = getCurrentPosition();
+    if (groundteam_pos.isEqual(dragonlord_pos.getRow(), dragonlord_pos.getCol())) {
+        cout << "MSG: GroundTeam trapped DragonLord for " << trap_turns << " turns" << endl;
+        setIsTrapped(true);
+        trap_duration = trap_turns;
+        return true;
+    }
+    return false;
 }
 
 int GroundTeam::getTrapTurns() const {

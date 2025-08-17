@@ -191,11 +191,10 @@ public:
     Position getRereversePosition() const;
     void move() override;
     string str() const override;
-    void trap(DragonLord *dragonlord);
+    bool trap(DragonLord *dragonlord);
     int getTrapTurns() const;
     void setTrapTurns(int turns);
     bool isDragonLord() const override { return false; }
-    bool processTrap(); 
     bool swapPosition();
     void setIsTrapped(bool trapped) { isTrapped = trapped; }
     bool isSmartDragon() const override { return false; }
@@ -248,6 +247,12 @@ public:
     DragonType getDragonType() const { return smartdragon_type; }
     bool isDragonLord() const override { return false; }
     bool isSmartDragon() const override { return true; }
+    string getType() const {
+        if (smartdragon_type == SD1) return "SD1";
+        else if (smartdragon_type == SD2) return "SD2";
+        else if (smartdragon_type == SD3) return "SD3";
+        return "";
+    }
 };
 
 // ——— BaseItem ———
@@ -278,7 +283,7 @@ public:
     void use(Warrior* w) override {
         if (canUse(w)) {
             int current_dmg = w->getDamage();
-            w->setDamage(current_dmg + current_dmg * 25 / 100);
+            w->setDamage(round(current_dmg + current_dmg * 25.0 / 100.0));
         }
     }
 };
@@ -531,77 +536,100 @@ public:
     bool meeting(int istep, int idx) {
         MovingObject *currentTeam = arr_mv_objs->get(idx);
 
-        for (int i = 0; i < arr_mv_objs->size(); ++i) {
-            if (i == idx) continue; 
-            MovingObject *otherTeam = arr_mv_objs->get(i);
-            if (otherTeam->isSmartDragon() && currentTeam->getCurrentPosition() == otherTeam->getCurrentPosition()) {
-                SmartDragon *smartDragon = dynamic_cast<SmartDragon*>(otherTeam);
-                if (currentTeam->getDamage() > otherTeam->getDamage()){
-                    Warrior* warrior = dynamic_cast<Warrior*>(currentTeam);
-                    if (warrior) {
-                        BaseItem* droppedItem = createItemFromSmartDragon(currentTeam, smartDragon->getDragonType());
-                        if (droppedItem) {
-                            if (droppedItem->canUse(warrior)) {
-                                droppedItem->use(warrior);
-                                cout << "MSG: " << warrior->getName() << " used " << droppedItem->str() << endl;
-                                delete droppedItem;
-                            } else if (warrior->getBag() && warrior->getBag()->insert(droppedItem)) {
-                            } else {
-                                delete droppedItem;
-                            }
-                        }
-                    }
-                    
-                    if (smartDragon->getDragonType() == SD1) {
-                        countSD1--;
-                    } else if (smartDragon->getDragonType() == SD2) {
-                        countSD2--;
-                    } else if (smartDragon->getDragonType() == SD3) {
-                        countSD3--;
-                    }
-                    cout << "MSG: FlyTeam1 encounters SmartDragon" << endl;
-
-                } else {
-                    currentTeam->setHp(currentTeam->getHp() - 100);
-                }
-            }
-        }
-
+        // 1. Check for encounter with DragonLord (FlyTeam1 or FlyTeam2)
         if (currentTeam != nullptr && currentTeam->getCurrentPosition() == dragonlord->getCurrentPosition() && !currentTeam->isDragonLord()) {
             if (currentTeam == flyteam1) {
-            cout << "MSG: FlyTeam1 encounters DragonLord" << endl;
-            printStep(istep);
-            cout << "FlyTeam1 defeated the DragonLord!" << endl;
-            return true;
+                cout << "MSG: FlyTeam1 encounters DragonLord" << endl;
+                printStep(istep);
+                cout << "FlyTeam1 defeated the DragonLord!" << endl;
+                return true;
             } else if (currentTeam == flyteam2) {
-            cout << "MSG: FlyTeam2 encounters DragonLord" << endl;
-            printStep(istep);
-            cout << "FlyTeam2 defeated the DragonLord!" << endl;
-            return true;
+                cout << "MSG: FlyTeam2 encounters DragonLord" << endl;
+                printStep(istep);
+                cout << "FlyTeam2 defeated the DragonLord!" << endl;
+                return true;
             } else if (currentTeam == groundteam) {
-            cout << "MSG: GroundTeam encounters DragonLord" << endl;
-            groundteam->trap(dragonlord);
+                cout << "MSG: GroundTeam encounters DragonLord" << endl;
+                groundteam->trap(dragonlord);
             }
-        } else {
-            for (int i = 0; i < arr_mv_objs->size(); ++i) {
-                if (i == idx) continue; 
-                MovingObject *otherTeam = arr_mv_objs->get(i);
-                if (currentTeam->getCurrentPosition() == otherTeam->getCurrentPosition()) {
-                    bool check = false;
-                    string name1 = currentTeam->getName();
-                    string name2 = otherTeam->getName();
-                    if (name1 == name2 &&  currentTeam->getCurrentPosition() == Position::npos) check = true;
-                    if (name1 == "FlyTeam")  name1 += to_string(currentTeam->getIndex());
-                    if (name2 == "FlyTeam")  name2 += to_string(otherTeam->getIndex());
+            return false;
+        }
+
+        // 2. Check for encounter with SmartDragon (warrior meets SmartDragon)
+        for (int i = 0; i < arr_mv_objs->size(); ++i) {
+            if (i == idx) continue;
+            MovingObject *otherObj = arr_mv_objs->get(i);
+            if (!otherObj) continue;
+            // Only check if one is SmartDragon and one is not
+            bool isCurrentSmart = currentTeam->isSmartDragon();
+            bool isOtherSmart = otherObj->isSmartDragon();
+            if ((isCurrentSmart ^ isOtherSmart) && currentTeam->getCurrentPosition() == otherObj->getCurrentPosition()) {
+            Warrior* warrior = nullptr;
+            SmartDragon* smartDragon = nullptr;
+            if (isCurrentSmart) {
+                smartDragon = dynamic_cast<SmartDragon*>(currentTeam);
+                warrior = dynamic_cast<Warrior*>(otherObj);
+            } else {
+                smartDragon = dynamic_cast<SmartDragon*>(otherObj);
+                warrior = dynamic_cast<Warrior*>(currentTeam);
+            }
+            if (!warrior || !smartDragon) continue;
+
+            string warriorName = warrior->getName();
+            if (dynamic_cast<FlyTeam*>(warrior)) {
+                if (warrior == flyteam1) warriorName = "FlyTeam1";
+                else if (warrior == flyteam2) warriorName = "FlyTeam2";
+            }
+
+            cout << "MSG: " << warriorName << " encounters " << smartDragon->getType() << endl;
+            if (warrior->getDamage() > smartDragon->getDamage()) {
+                BaseItem* droppedItem = createItemFromSmartDragon(warrior, smartDragon->getDragonType());
+                smartDragon->setHp(1);
+                if (droppedItem) {
+                if (droppedItem->canUse(warrior)) {
+                    droppedItem->use(warrior);
+                    cout << "MSG: " << warriorName << " used " << droppedItem->str() << endl;
+                    delete droppedItem;
+                } else if (warrior->getBag() && warrior->getBag()->insert(droppedItem)) {
+                    // Inserted into bag
+                } else {
+                    delete droppedItem;
+                }
+                }
+                // Decrement smartdragon count
+                if (smartDragon->getDragonType() == SD1) countSD1--;
+                else if (smartDragon->getDragonType() == SD2) countSD2--;
+                else if (smartDragon->getDragonType() == SD3) countSD3--;
+            } else {
+                warrior->setHp(warrior->getHp() - 100);
+            }
+            return false;
+            }
+        }
+
+        // 3. Check for meet (two objects at same position, not DragonLord encounter, not SmartDragon encounter)
+        for (int i = 0; i < arr_mv_objs->size(); ++i) {
+            if (i == idx) continue;
+            MovingObject *otherTeam = arr_mv_objs->get(i);
+            if (!otherTeam) continue;
+            if (currentTeam->getCurrentPosition() == otherTeam->getCurrentPosition()) {
+                bool check = false;
+                string name1 = currentTeam->getName();
+                string name2 = otherTeam->getName();
+                if (name1 == name2 && currentTeam->getCurrentPosition() == Position::npos) check = true;
+                if (name1 == "FlyTeam")  name1 += to_string(currentTeam->getIndex());
+                if (name2 == "FlyTeam")  name2 += to_string(otherTeam->getIndex());
+                if (!(currentTeam->getCurrentPosition() == Position::npos)) {
                     cout << "MSG: " << name1 << " meets " << name2 << endl;
-                    if (check) {
-                        printStep(istep);
-                        printResult();
-                        return true;
-                    }
+                }
+                if (check) {
+                    printStep(istep);
+                    printResult();
+                    return true;
                 }
             }
         }
+
         return false;
     }
     int arrSize;
@@ -646,8 +674,11 @@ public:
                     smartDragonType = newType;
                     smartDragonTarget = target;
                 }
-                if (arr_mv_objs->get(i)->isDragonLord() && groundteam->processTrap()) {
-                    continue;
+                if (arr_mv_objs->get(i)->isDragonLord()) {
+                    DragonLord* dragonlord = dynamic_cast<DragonLord*>(arr_mv_objs->get(i));
+                    if (dragonlord && groundteam->trap(dragonlord)) {
+                        continue;
+                    }
                 }
                 
                 Warrior* warrior = dynamic_cast<Warrior*>(arr_mv_objs->get(i));
