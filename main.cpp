@@ -179,7 +179,7 @@ int main(int argc, const char * argv[]) {
     // delete testMap;
     // cout << "\n----- BaseBag Testing Complete -----" << endl;
 
-    TestDragonWar::satc_19();
+    TestDragonWar::satc_21();
 //     cout << "----- Sample Testcase 09 -----" << endl;
 // Map * map = new Map(10, 10, 0, nullptr, 0, nullptr);
 // FlyTeam * flyteam = new FlyTeam(1, "RD", Position(0, 0), map, 100, 100);

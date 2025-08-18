@@ -25,6 +25,7 @@ class DragonWarriorsProgram;
 class Position;
 class Configuration;
 class Map;
+class Path;
 
 class DragonLord;
 class SmartDragon;
@@ -154,11 +155,59 @@ public:
     bool isDragonLord() const override;
 };
 
+// ——— Path class (for movement tracking) ———
+class Path {
+private:
+    Position* positions;
+    int capacity;
+    int idx;
+    int filled;
+    int totalMoves;
+public:
+    Path(int cap = 100) : capacity(cap), idx(0), filled(0), totalMoves(0) {
+        positions = new Position[capacity];
+    }
+    Path(const Path& other) : capacity(other.capacity), idx(other.idx), filled(other.filled), totalMoves(other.totalMoves) {
+        positions = new Position[capacity];
+        for (int i = 0; i < filled; ++i) {
+            positions[i] = other.positions[i];
+        }
+    }
+    ~Path() {
+        delete[] positions;
+    }
+    void add(const Position& pos) {
+        if (filled < capacity) {
+            positions[filled++] = pos;
+        }
+        totalMoves++;
+    }
+
+    int getTotalMoves() const {
+        return totalMoves;
+    }
+
+    bool checkLoop() const {
+        if (filled < 4) return false;
+        const Position& a = positions[filled - 5];
+        const Position& b = positions[filled - 4];
+        const Position& c = positions[filled - 3];
+        const Position& d = positions[filled - 2];
+        const Position& e = positions[filled - 1];
+        if (a == c && b == d && c == e) {
+            return true;
+        }
+        return false;
+    }
+};
+
 // ——— FlyTeam & GroundTeam ———
 class FlyTeam : public Warrior {
 private:
     string moving_rule;
     int moving_index;
+    Position last_positions[5]; // Track last 5 positions for stuck detection
+    int position_count;
 public:
     FlyTeam(int index, const string & moving_rule,
         const Position & pos, Map * map, int hp, int damage);
@@ -172,6 +221,10 @@ public:
     bool isDragonLord() const override { return false; }
     bool isSmartDragon() const override { return false; }
     string getName() const { return name + to_string(index); }
+    static void checkAndHandleStuckPattern(MovingObject* obj, Path* movement_path);
+private:
+    void addPosition(const Position& pos);
+    bool checkStuckPattern();
 
 };
 
@@ -182,6 +235,8 @@ private:
     int trap_turns;
     bool isTrapped;
     int trap_duration;
+    Position last_positions[5]; // Track last 5 positions for stuck detection
+    int position_count;
 
 public:
     GroundTeam(int index, const string & moving_rule,
@@ -198,6 +253,10 @@ public:
     bool swapPosition();
     void setIsTrapped(bool trapped) { isTrapped = trapped; }
     bool isSmartDragon() const override { return false; }
+    static void checkAndHandleStuckPattern(MovingObject* obj, Path* movement_path);
+private:
+    void addPosition(const Position& pos);
+    bool checkStuckPattern();
 };
 
 // ——— DragonLord ———
@@ -415,51 +474,6 @@ public:
 };
 
 // ——— DragonWarriorsProgram ———
-class Path {
-private:
-    Position* positions;
-    int capacity;
-    int idx;
-    int filled;
-    int totalMoves;
-public:
-    Path(int cap = 100) : capacity(cap), idx(0), filled(0), totalMoves(0) {
-        positions = new Position[capacity];
-    }
-    Path(const Path& other) : capacity(other.capacity), idx(other.idx), filled(other.filled), totalMoves(other.totalMoves) {
-        positions = new Position[capacity];
-        for (int i = 0; i < filled; ++i) {
-            positions[i] = other.positions[i];
-        }
-    }
-    ~Path() {
-        delete[] positions;
-    }
-    void add(const Position& pos) {
-        if (filled < capacity) {
-            positions[filled++] = pos;
-        }
-        totalMoves++;
-    }
-
-    int getTotalMoves() const {
-        return totalMoves;
-    }
-
-    bool checkLoop() const {
-        if (filled < 4) return false;
-        const Position& a = positions[filled - 5];
-        const Position& b = positions[filled - 4];
-        const Position& c = positions[filled - 3];
-        const Position& d = positions[filled - 2];
-        const Position& e = positions[filled - 1];
-        if (a == c && b == d && c == e) {
-            return true;
-        }
-        return false;
-    }
-};
-
 class MovementHistory {
 private:
     Path **history;
@@ -688,13 +702,6 @@ public:
                 
                 arr_mv_objs->get(i)->move();
                 movement_history->getPath(i)->add(arr_mv_objs->get(i)->getCurrentPosition());
-                if (!arr_mv_objs->get(i)->isDragonLord() && arr_mv_objs->get(i)->getHp() > 1 && movement_history->getPath(i)->checkLoop()) {
-                    string name = arr_mv_objs->get(i)->getName();
-                    if (name == "FlyTeam") name += to_string(arr_mv_objs->get(i)->getIndex());
-                    cout<<"MSG: "<<name<<" eliminated due to being stuck for 3 similar patterns!"<<endl;
-                    arr_mv_objs->get(i)->setHp(1);
-                    arr_mv_objs->get(i)->setPosition(Position::npos);
-                }
                 if (meeting(istep, i)) return ;
                 if (createSmartDragon) {
                     createSmartDragon = false;

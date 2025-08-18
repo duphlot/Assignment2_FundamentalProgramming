@@ -205,7 +205,15 @@ FlyTeam::FlyTeam(int index, const string & moving_rule,
         // FlyTeam bag capacity = 5
         bag = new BaseBag(5);
         bag->setOwner(this);
+        
+        // Initialize position tracking
+        position_count = 0;
+        for (int i = 0; i < 5; i++) {
+            last_positions[i] = Position::npos;
+        }
+        addPosition(pos);
     }
+
 string FlyTeam::getMovingRule() const { return moving_rule; }
 Position FlyTeam::getNextPosition() {
     if (moving_rule.empty()) return Position::npos;
@@ -269,6 +277,14 @@ void FlyTeam::move() {
         }
         moving_index = (moving_index + 1) % moving_rule.size();
     }
+    
+    // Add current position and check for stuck pattern
+    addPosition(pos);
+    if (hp > 1 && checkStuckPattern()) {
+        cout<<"MSG: "<<getName()<<" eliminated due to being stuck for 3 similar patterns!"<<endl;
+        hp = 1;
+        pos = Position::npos;
+    }
 }
 string FlyTeam::str() const {
     int tempIndex = max(index,1);
@@ -282,10 +298,36 @@ bool FlyTeam::attack(DragonLord *dragonlord) {
     Position flyteam_pos = getCurrentPosition();
     
     if (flyteam_pos.isEqual(dragonlord_pos.getRow(), dragonlord_pos.getCol())) {
-
+        cout << "MSG: " << getName() << " encounters DragonLord" << endl;
         return true;
     }
     return false;
+}
+void FlyTeam::checkAndHandleStuckPattern(MovingObject* obj, Path* movement_path) {
+    if (obj && movement_path && movement_path->checkLoop()) {
+        string name = obj->getName();
+        if (name == "FlyTeam") name += to_string(obj->getIndex());
+        cout<<"MSG: "<<name<<" eliminated due to being stuck for 3 similar patterns!"<<endl;
+        obj->setHp(1);
+        obj->setPosition(Position::npos);
+    }
+}
+void FlyTeam::addPosition(const Position& pos) {
+    last_positions[position_count % 5] = pos;
+    position_count++;
+}
+
+bool FlyTeam::checkStuckPattern() {
+    if (position_count < 5) return false;
+    
+    // Check if we have the pattern: A-B-A-B-A (3 similar patterns)
+    const Position& a = last_positions[(position_count - 5) % 5];
+    const Position& b = last_positions[(position_count - 4) % 5];
+    const Position& c = last_positions[(position_count - 3) % 5];
+    const Position& d = last_positions[(position_count - 2) % 5];
+    const Position& e = last_positions[(position_count - 1) % 5];
+    
+    return (a == c && b == d && c == e);
 }
 
 // 3.7
@@ -302,7 +344,15 @@ GroundTeam::GroundTeam(int index, const string & moving_rule,
         // GroundTeam bag capacity = 7
         bag = new BaseBag(7);
         bag->setOwner(this);
+        
+        // Initialize position tracking
+        position_count = 0;
+        for (int i = 0; i < 5; i++) {
+            last_positions[i] = Position::npos;
+        }
+        addPosition(pos);
     }
+
 Position GroundTeam::getNextPosition() {
     if (moving_rule.empty()) return Position::npos;
     
@@ -366,6 +416,13 @@ void GroundTeam::move() {
         moving_index = (moving_index + 1) % moving_rule.size();
     
     }
+    
+    addPosition(pos);
+    if (hp > 1 && checkStuckPattern()) {
+        cout<<"MSG: "<<getName()<<" eliminated due to being stuck for 3 similar patterns!"<<endl;
+        hp = 1;
+        pos = Position::npos;
+    }
 }
 string GroundTeam::str() const {
     return "GroundTeam[index=" + std::to_string(index) + ";pos=" + pos.str() + ";moving_rule=" + moving_rule + "]";
@@ -408,6 +465,7 @@ bool GroundTeam::trap(DragonLord *dragonlord) {
             setIsTrapped(false);
             trap_turns = 3;
             if (swapPosition()) {
+                setHp(getHp() - 200);
                 cout<<"MSG: DragonLord escaped the trap! GroundTeam transferred to "<<getCurrentPosition().str()<<endl;
             } else {
                 cout<<"MSG: DragonLord escaped the trap! Failed to move GroundTeam - eliminated!"<<endl;
@@ -434,6 +492,35 @@ int GroundTeam::getTrapTurns() const {
 void GroundTeam::setTrapTurns(int turns) {
     trap_turns = max(turns, 0);
 }
+
+void GroundTeam::checkAndHandleStuckPattern(MovingObject* obj, Path* movement_path) {
+    if (obj && movement_path && movement_path->checkLoop()) {
+        string name = obj->getName();
+        if (name == "FlyTeam") name += to_string(obj->getIndex());
+        cout<<"MSG: "<<name<<" eliminated due to being stuck for 3 similar patterns!"<<endl;
+        obj->setHp(1);
+        obj->setPosition(Position::npos);
+    }
+}
+
+void GroundTeam::addPosition(const Position& pos) {
+    last_positions[position_count % 5] = pos;
+    position_count++;
+}
+
+bool GroundTeam::checkStuckPattern() {
+    if (position_count < 5) return false;
+    
+    // Check if we have the pattern: A-B-A-B-A (3 similar patterns)
+    const Position& a = last_positions[(position_count - 5) % 5];
+    const Position& b = last_positions[(position_count - 4) % 5];
+    const Position& c = last_positions[(position_count - 3) % 5];
+    const Position& d = last_positions[(position_count - 2) % 5];
+    const Position& e = last_positions[(position_count - 1) % 5];
+    
+    return (a == c && b == d && c == e);
+}
+
 
 // 3.8
 DragonLord::DragonLord(int index, const Position & pos, Map * map,
@@ -1037,7 +1124,6 @@ BaseItem* DragonWarriorsProgram::createItemFromSmartDragon(MovingObject* warrior
             return nullptr;
     }
 }
-
 
 ////////////////////////////////////////////////
 /// END OF STUDENT'S ANSWER
